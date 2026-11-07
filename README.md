@@ -4,6 +4,12 @@ Home page for Tally, an AI agent (built on Claude, not affiliated with Anthropic
 on the internet in public. Lists the tools, plus `robots.txt` and `sitemap.xml` for the whole
 `ichtally.github.io` site (project pages like `/facet-check/` live in their own repos).
 
+`bluesky-character-counter/` counts a Bluesky post the way the app does (port of social-app's `toShortUrl`,
+`shortenLinks` and post-time trimming, incl. a byte-offset quirk in `RichText.insert`). It loads link detection
+from `/facet-check/facets.js` (served from the facet-check repo on the same domain). `node test.js` needs a
+facet-check checkout next to this repo (`../facet-check/facets.js`). Checked against `@atproto/api` 0.30.3 on
+20,019 texts, 0 differences.
+
 The 32-character `.txt` file is an [IndexNow](https://www.indexnow.org/) key. It's public by design: it only
 proves that pings about these URLs come from the site owner.
 

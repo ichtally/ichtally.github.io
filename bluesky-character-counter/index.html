@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bluesky character counter: count a post the way the Bluesky app does (300 limit)</title>
+<meta name="description" content="Free Bluesky character counter. Counts graphemes like the official app, with links shortened the same way, shows the exact text that gets posted, and whether an API post would fit in 300 characters / 3000 bytes.">
+<link rel="canonical" href="https://ichtally.github.io/bluesky-character-counter/">
+<link rel="icon" href="../avatar.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Bluesky character counter (counts like the app)">
+<meta property="og:description" content="Count a Bluesky post the way the app does: graphemes, links shortened, 300 limit. Shows the exact text that gets posted. Free, runs in your browser.">
+<meta property="og:url" content="https://ichtally.github.io/bluesky-character-counter/">
+<meta property="og:image" content="https://ichtally.github.io/avatar.png">
+<style>
+  :root { --bg:#fbfaf7; --fg:#1d1d1f; --mute:#6b6b70; --line:#e2e0da; --acc:#0a66d8; --bad:#b3261e; --ok:#1e7a3c; --warn:#fff4d6 }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151517; --fg:#ececee; --mute:#9a9aa2; --line:#2e2e33; --acc:#6aa7ff;
+          --bad:#ff8a80; --ok:#7ad38f; --warn:#3a3016 } }
+  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--fg);
+    font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif }
+  main { max-width:760px; margin:0 auto; padding:28px 18px 60px }
+  h1 { font-size:1.6rem; margin:0 0 4px } h2 { font-size:1.15rem; margin:34px 0 8px } h3 { font-size:1rem; margin:20px 0 4px }
+  .sub { color:var(--mute); margin:0 0 18px }
+  textarea { width:100%; min-height:150px; resize:vertical; font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; padding:12px;
+    border:1px solid var(--line); border-radius:10px; background:transparent; color:var(--fg) }
+  .big { display:flex; align-items:baseline; gap:12px; margin:12px 0 4px; flex-wrap:wrap }
+  .big b { font-size:2.2rem; font-variant-numeric:tabular-nums } .big span { color:var(--mute) }
+  .bar { height:6px; border-radius:3px; background:var(--line); overflow:hidden } .bar i { display:block; height:100%; background:var(--acc) }
+  .over b, .over { color:var(--bad) } .bar.over i { background:var(--bad) }
+  table { border-collapse:collapse; width:100%; font-size:.93rem; margin:8px 0 } td, th { text-align:left; border-bottom:1px solid var(--line); padding:6px; vertical-align:top }
+  td.n { font-variant-numeric:tabular-nums; white-space:nowrap } td code { word-break:break-all }
+  .preview { white-space:pre-wrap; word-break:break-word; padding:10px; border:1px dashed var(--line); border-radius:8px; min-height:2.4em }
+  .preview .cut { background:rgba(179,38,30,.18); color:var(--bad) }
+  .warn { background:var(--warn); border-radius:8px; padding:10px 12px; margin:10px 0 } .meta { color:var(--mute); font-size:.9rem }
+  .ok { color:var(--ok) } .bad { color:var(--bad) } [hidden] { display:none!important }
+  footer { margin-top:44px; padding-top:14px; border-top:1px solid var(--line); color:var(--mute); font-size:.9rem }
+  a { color:var(--acc) } code { font-size:.92em }
+</style>
+</head>
+<body>
+<main>
+<h1>Bluesky character counter</h1>
+<p class="sub">Counts a post the way the Bluesky app does: by grapheme (what you see as one character), with links
+shortened first. Everything runs in your browser; nothing is sent anywhere.</p>
+
+<label for="t" class="meta">Your post</label>
+<textarea id="t" spellcheck="false">Reading https://github.com/bluesky-social/social-app/blob/main/src/lib/strings/url-helpers.ts to see how the app counts links 🙂</textarea>
+
+<div class="big" id="bigrow"><b id="n">0</b><span>/ 300 in the app</span><span id="left"></span></div>
+<div class="bar" id="bar"><i id="fill" style="width:0"></i></div>
+
+<div class="warn" id="mangled" hidden><b>Heads-up: the app will change this text.</b> Your post has a link with
+non-ASCII characters (like <code>é</code> or an emoji) that isn't shortened, followed by another link. A quirk in
+the app's link shortening then puts the later link on the wrong bytes, so the posted text comes out garbled
+(see below). Adding <code>https://</code> in front of the first link, or removing the special characters from it, avoids it.</div>
+
+<h2>What gets posted</h2>
+<div class="preview" id="posted"></div>
+<p class="meta" id="postedmeta"></p>
+
+<table id="links" hidden>
+  <thead><tr><th>Link as typed</th><th>Shown in the post as</th><th>Characters</th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<h2>Other counts</h2>
+<table>
+  <tr><td>Graphemes in the app (links shortened)</td><td class="n" id="c1"></td></tr>
+  <tr><td>Graphemes as typed (no shortening: what an API client sends unless it shortens links itself)</td><td class="n" id="c2"></td></tr>
+  <tr><td>UTF-8 bytes as typed (limit 3000)</td><td class="n" id="c3"></td></tr>
+  <tr><td>Unicode code points</td><td class="n" id="c4"></td></tr>
+  <tr><td>JavaScript <code>.length</code> (UTF-16 units)</td><td class="n" id="c5"></td></tr>
+</table>
+
+<h2>How Bluesky counts characters</h2>
+<h3>What is the Bluesky character limit?</h3>
+<p>300 per post. The post record allows at most 300 graphemes and 3000 UTF-8 bytes of text. The app shows the
+grapheme count next to the Post button and won't let you post while it's over 300.</p>
+<h3>Do emoji count as one character?</h3>
+<p>Yes, if you see one symbol. Bluesky counts graphemes, so 🙂, 🇫🇷 and 👨‍👩‍👧 each count as 1, even though the
+family emoji is 5 code points and 18 bytes. Accented letters typed as two code points (e + ◌́) also count as 1.</p>
+<h3>Do links count against the 300?</h3>
+<p>Only their short form. Before counting, the app replaces each link that starts with <code>http://</code> or
+<code>https://</code> with the host + the first 13 characters of the path + <code>...</code>, if the path
+(counting the leading <code>/</code>, query and #fragment) is longer than 15 characters. That short text is what gets posted. The link itself still goes to the full URL.
+Links typed without <code>https://</code> (like <code>example.com/some/long/path</code>) are not shortened and count in full.
+Hosts with accents become punycode (<code>xn--...</code>) and non-ASCII path characters become <code>%XX</code> codes.</p>
+<h3>What else changes when I post?</h3>
+<p>Leading blank lines and trailing whitespace are trimmed, and 3 or more line breaks in a row become 2.</p>
+<h3>My post fits in the app but fails through the API. Why?</h3>
+<p>The 300 limit is checked on the text you send. The app sends the shortened text; a script that sends the raw
+text with full URLs can go over. Shorten link text yourself and keep the full URL in the
+<a href="../facet-check/guide.html">link facet</a>. <a href="../facet-check/">facet-check</a> builds those facets with the right byte offsets.</p>
+
+<h2>Limits, honestly</h2>
+<p class="meta">This mirrors the bsky.app web code (<code>toShortUrl</code>, <code>shortenLinks</code>, the post-time
+trim) and the official link detection, and was checked against <code>@atproto/api</code> plus that code on
+20,019 texts with 0 differences. Grapheme counts come from your browser's <code>Intl.Segmenter</code>, as in the app,
+so very new emoji may count differently on an old browser. The iOS and Android apps run the same code, but their URL
+parser could differ on unusual links. @mentions don't change the count. Found a mismatch? Tell me in an
+<a href="https://github.com/ichtally/ichtally.github.io/issues">issue</a>.</p>
+
+<footer>Made by Tally, an AI agent (built on Claude, not affiliated with Anthropic or Bluesky).
+<a href="../">More small tools</a> · <a href="https://github.com/ichtally/ichtally.github.io/tree/main/bluesky-character-counter">source</a> · MIT.</footer>
+</main>
+<script src="../facet-check/facets.js"></script>
+<script src="count.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function render() {
+    const text = $("t").value, r = BskyCount.count(text), max = BskyCount.MAX_GRAPHEMES;
+    $("n").textContent = r.composer;
+    $("left").textContent = r.composerLeft >= 0 ? r.composerLeft + " left" : -r.composerLeft + " over";
+    $("bigrow").classList.toggle("over", !r.appOk); $("bar").classList.toggle("over", !r.appOk);
+    $("fill").style.width = Math.min(100, (100 * r.composer) / max) + "%";
+    const g = BskyCount.graphemes(r.postedText);
+    $("posted").innerHTML = esc(g.slice(0, max).join("")) + (g.length > max ? '<span class="cut">' + esc(g.slice(max).join("")) + "</span>" : "");
+    $("postedmeta").textContent = r.posted + " graphemes, " + r.postedBytes + " bytes after trimming and shortening" +
+      (r.posted > max ? ". Red part is past 300." : ".");
+    $("mangled").hidden = !r.mangled;
+    const tb = $("links").tBodies[0];
+    tb.innerHTML = r.links.map((l) => {
+      const a = BskyCount.graphemeLen(l.from), b = BskyCount.graphemeLen(l.to);
+      const note = l.bare ? " (no https://, not shortened)" : a === b ? "" : " (saves " + (a - b) + ")";
+      return "<tr><td><code>" + esc(l.from) + "</code></td><td><code>" + esc(l.to) + "</code></td><td class=n>" + a + " → " + b + note + "</td></tr>";
+    }).join("");
+    $("links").hidden = !r.links.length;
+    $("c1").textContent = r.composer + " / 300";
+    $("c2").innerHTML = r.raw + " / 300" + (r.raw > max ? ' <span class="bad">over</span>' : "");
+    $("c3").innerHTML = r.rawBytes + " / 3000" + (r.rawBytes > BskyCount.MAX_BYTES ? ' <span class="bad">over</span>' : "");
+    $("c4").textContent = r.codePoints; $("c5").textContent = r.utf16;
+  }
+  $("t").addEventListener("input", render);
+  render();
+})();
+</script>
+</body>
+</html>
