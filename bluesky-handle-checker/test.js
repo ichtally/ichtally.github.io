@@ -96,10 +96,13 @@ t("host field for DNS panels", () => {
 // ---- whole flow ----
 t("ok via DNS", () => run("alice.example.com", { dns: { "_atproto.alice.example.com": ['"did=' + A + '"'] },
   docs: { [A]: ["alice.example.com"] }, profiles: { [A]: "alice.example.com" }, resolve: { "alice.example.com": A } })
-  .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.strictEqual(r.didSource, "dns"); assert.strictEqual(r.pds, "https://pds.example.net"); }));
+  .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.strictEqual(r.didSource, "dns"); assert.strictEqual(r.pds, "https://pds.example.net");
+    assert.ok(!r.verdict.steps.some((s) => /well-known file only/.test(s)));
+    assert.ok(r.verdict.steps.some((s) => /Still seeing "Invalid Handle".*Update to alice\.example\.com/.test(s))); }));
 t("ok via well-known", () => run("bob.example.org", { wk: { "bob.example.org": A + "\n" },
   docs: { [A]: ["bob.example.org"] }, profiles: { [A]: "bob.example.org" } })
-  .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.strictEqual(r.didSource, "http"); }));
+  .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.strictEqual(r.didSource, "http");
+    assert.ok(r.verdict.steps.some((s) => s.indexOf("well-known file only") >= 0 && s.indexOf("did=" + A) >= 0)); }));
 t("well-known blocked by CORS, Bluesky resolves it: still ok", () => run("bob.example.org", {
   resolve: { "bob.example.org": A }, docs: { [A]: ["bob.example.org"] }, profiles: { [A]: "bob.example.org" } })
   .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.strictEqual(r.didSource, "appview"); }));

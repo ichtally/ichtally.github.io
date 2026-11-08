@@ -88,6 +88,20 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
     out here, saving the handle again in the app usually clears it.</li>
 </ul>
 
+<h3>It worked for months and now says "Invalid Handle"</h3>
+<p>Bluesky re-checks domain handles from time to time, so a handle can break long after it was set up. Run a check above, then:</p>
+<ul>
+  <li><b>The check finds no record.</b> Usually the domain expired, or it moved to a new DNS host or site builder and the
+    <code>_atproto</code> TXT record wasn't copied over. Add it again (the second box above gives you the exact value).</li>
+  <li><b>The handle uses only the .well-known file.</b> Then it depends on your website. If the site (or the hosting
+    service it lives on) is down or slow when Bluesky re-checks, the handle goes invalid until the next check. A DNS TXT
+    record avoids that.</li>
+  <li><b>The check says "All good".</b> Nothing is wrong now; an earlier check failed, possibly on Bluesky's side. In early
+    November 2026 several people posted that long-standing domain handles had suddenly turned invalid; the ones I looked
+    up resolved fine again. To force a fresh check: Settings → Account → Handle → "I have my own domain", enter the same
+    domain, verify, then "Update to …".</li>
+</ul>
+
 <h3>Where do I find my DID?</h3>
 <p>Put your current handle (for example <code>you.bsky.social</code>) in the second box above and run a check: the table shows the
 exact TXT value to use. The Bluesky app also shows it while you change your handle to a domain.</p>

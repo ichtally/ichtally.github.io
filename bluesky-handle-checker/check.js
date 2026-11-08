@@ -272,6 +272,12 @@
           'Finish in the Bluesky app: change your handle, choose the option for your own domain, enter ' + r.handle + ' and verify.']) };
     }
     if (r.profile && r.profile.handle === r.handle) {
+      if (r.didSource === 'http') steps.push('This handle works through the .well-known file only. That is allowed, but if the ' +
+        'website is down or slow when Bluesky re-checks, the handle shows as invalid until the next check. A DNS TXT record ' +
+        '(_atproto, value did=' + r.did + ') does not depend on the website.');
+      steps.push('Still seeing "Invalid Handle" in the app? Then the setup is fine right now and an earlier check failed. ' +
+        'To force a fresh check: Settings, Account, Handle, "I have my own domain", enter ' + r.handle + ', verify, then "Update to ' +
+        r.handle + '".');
       return { level: 'ok', title: 'All good: ' + r.handle + ' is a working Bluesky handle', steps: steps };
     }
     var shown = r.profile ? r.profile.handle : '(profile not found)';
