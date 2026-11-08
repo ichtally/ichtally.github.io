@@ -78,7 +78,10 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
     <code>_atproto.example.com</code> there creates <code>_atproto.example.com.example.com</code>. Type just <code>_atproto</code>
     (or <code>_atproto.alice</code> for <code>alice.example.com</code>). This page looks for the doubled name too.</li>
   <li><b>Two <code>did=</code> records.</b> If <code>_atproto</code> has more than one TXT record starting with <code>did=</code>,
-    Bluesky ignores all of them, even if they're identical. Keep exactly one.</li>
+    Bluesky ignores all of them, even if they're identical. Keep exactly one. This happens a lot to organisations with
+    a second account (a sports desk, a language edition): that account's record gets added at the main
+    <code>_atproto</code> name instead of its own, like <code>_atproto.sports</code>, and the main handle goes invalid.
+    This page looks up each DID and tells you which one to keep.</li>
   <li><b>Missing or misspelled prefix.</b> The value must start with exactly <code>did=</code> (lower case, no spaces).
     <code>did:plc:…</code> alone, or <code>DID=…</code>, doesn't count.</li>
   <li><b>Record on the wrong name.</b> A TXT record on the domain itself (host <code>@</code>) is not looked at.</li>

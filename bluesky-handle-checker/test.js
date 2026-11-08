@@ -119,6 +119,22 @@ t("record put on the domain itself", () => run("example.com", { dns: { "example.
   .then((r) => assert.match(r.verdict.steps.join(" "), /must be on _atproto\.example\.com/)));
 t("two did= records", () => run("example.com", { dns: { "_atproto.example.com": ['"did=' + A + '"', '"did=' + B + '"'] } })
   .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.steps.join(" "), /ambiguous/); }));
+t("two records, one is a sibling account: keep the right one, move the other", () => run("news.com", {
+  dns: { "_atproto.news.com": ['"did=' + A + '"', '"did=' + B + '"'] },
+  docs: { [A]: ["news.com"], [B]: ["sports.news.com"] }, profiles: { [A]: "handle.invalid", [B]: "sports.news.com" } })
+  .then((r) => { assert.strictEqual(r.verdict.level, "bad"); const s = r.verdict.steps.join(" | ");
+    assert.match(s, new RegExp("Keep did=" + A)); assert.match(s, new RegExp("Remove did=" + B + ".*sports\\.news\\.com"));
+    assert.match(s, /host\/name "_atproto\.sports" in the DNS panel for news\.com/); }));
+t("two records on a subdomain handle: host field is relative to the registered domain", () => run("eu.news.com", {
+  dns: { "_atproto.eu.news.com": ['"did=' + A + '"', '"did=' + B + '"'] },
+  docs: { [A]: ["eu.news.com"], [B]: ["fr.eu.news.com"] } })
+  .then((r) => assert.match(r.verdict.steps.join(" "), /host\/name "_atproto\.fr\.eu" in the DNS panel for news\.com/)));
+t("two records, neither claims the handle: no guess", () => run("news.com", {
+  dns: { "_atproto.news.com": ['"did=' + A + '"', '"did=' + B + '"'] }, docs: { [A]: ["a.bsky.social"], [B]: ["b.bsky.social"] } })
+  .then((r) => { const s = r.verdict.steps.join(" "); assert.ok(!/Keep did=/.test(s)); assert.match(s, /can not say which to keep/); }));
+t("two identical records: no per-DID lookup", () => run("news.com", {
+  dns: { "_atproto.news.com": ['"did=' + A + '"', '"did=' + A + '"'] }, docs: { [A]: ["news.com"] } })
+  .then((r) => { assert.strictEqual(r.dupes, null); assert.match(r.verdict.steps.join(" "), /identical/); }));
 t("DNS wins over well-known, conflict reported", () => run("example.com", {
   dns: { "_atproto.example.com": ['"did=' + A + '"'] }, wk: { "example.com": B },
   docs: { [A]: ["example.com"] }, profiles: { [A]: "example.com" } })

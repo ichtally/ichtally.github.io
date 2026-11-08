@@ -84,7 +84,9 @@
       var same = found.every(function (r) { return r === found[0]; });
       notes.push('There are ' + found.length + ' "did=" records. Bluesky treats that as ambiguous and ignores ALL of them' +
         (same ? ' (even though they are identical).' : '.') + ' Delete all but one.');
-      return { did: null, valid: false, notes: notes };
+      var all = [];
+      found.forEach(function (r) { var d = r.slice(4); if (all.indexOf(d) < 0) all.push(d); });
+      return { did: null, valid: false, notes: notes, all: all };
     }
     records.forEach(function (r) {
       var t = r.trim();
@@ -203,7 +205,23 @@
         var apex = labels.slice(-2).join('.');
         extra.push(doh(fetchFn, apex).then(function (d) { rep.apex = { name: apex, rcode: d.rcode }; return { name: apex, zone: null, d: { txt: [] } }; }));
       }
-      return Promise.all(extra);
+      // Several different did= records: find out whose each one is. Typical case: an organisation with a second
+      // account (e.g. a sports or language desk) added that account's record at the main name.
+      var dupesP = Promise.resolve(null);
+      var all = (rep.dns.pick.all || []).filter(isValidDid);
+      if (all.length > 1) {
+        dupesP = Promise.all(all.map(function (did) {
+          var url = didDocUrl(did);
+          return Promise.all([
+            url ? getJson(fetchFn, url).then(function (r) { return r.status === 200 ? r.json : null; }, function () { return null; }) : null,
+            getJson(fetchFn, API + 'app.bsky.actor.getProfile?actor=' + encodeURIComponent(did))
+              .then(function (r) { return r.json && r.json.handle ? r.json : null; }, function () { return null; })
+          ]).then(function (x) {
+            return { did: did, aka: x[0] ? akaHandles(x[0]) : null, displayName: x[1] ? (x[1].displayName || '') : '' };
+          });
+        }));
+      }
+      return Promise.all([Promise.all(extra), dupesP]).then(function (x) { rep.dupes = x[1]; return x[0]; });
     }).then(function (misplaced) {
       rep.misplaced = misplaced.filter(function (m) {
         return m.d.txt.some(function (t) { return /did[=:]/i.test(t); });
@@ -231,6 +249,35 @@
     return full.slice(0, full.length - zone.length - 1);
   }
 
+  // Which of several did= records to keep, and where the others belong.
+  function dupeSteps(r) {
+    var d = r.dupes || [];
+    if (d.length < 2) return [];
+    var keep = d.filter(function (x) { return x.aka && x.aka.indexOf(r.handle) >= 0; });
+    var who = function (x) { return x.did + (x.displayName ? ' ("' + x.displayName + '")' : ''); };
+    if (keep.length !== 1) {
+      return d.map(function (x) {
+        return 'did=' + who(x) + ': ' + (x.aka ? 'claims ' + (x.aka.join(', ') || 'no handle') + '.' : 'could not load its DID document.');
+      }).concat(['None of them (or more than one) claims ' + r.handle + ', so the record list alone can not say which to keep. ' +
+        'Keep the DID of the account that should have this handle.']);
+    }
+    var out = ['Keep did=' + keep[0].did + ': that account' + (keep[0].displayName ? ' ("' + keep[0].displayName + '")' : '') +
+      ' is the one that claims ' + r.handle + ' as its handle.'];
+    d.forEach(function (x) {
+      if (x === keep[0]) return;
+      var h = x.aka && x.aka[0];
+      var s = 'Remove did=' + x.did + ' from _atproto.' + r.handle + ': it is a different account' +
+        (x.displayName ? ' ("' + x.displayName + '")' : '') + (h ? ', which uses ' + h : '') + '.';
+      if (h && h !== r.handle && h.slice(-(r.handle.length + 1)) === '.' + r.handle) {
+        var zone = r.handle.split('.').slice(-2).join('.');
+        s += ' Its own record goes at _atproto.' + h + ' (host/name "' + hostField(h, zone) + '" in the DNS panel for ' + zone +
+          '), not here.';
+      }
+      out.push(s);
+    });
+    return out;
+  }
+
   // level: ok | wait | bad. steps: what to do next.
   function verdict(r) {
     if (r.syntaxError) return { level: 'bad', title: 'Not a valid handle', steps: [r.syntaxError] };
@@ -246,6 +293,7 @@
             'host/name "' + hostField(r.handle, r.apex.name) + '", value "did=" followed by your DID. Then re-verify the handle in the app.']) };
       }
       steps = steps.concat(r.dns.pick.notes);
+      steps = steps.concat(dupeSteps(r));
       (r.misplaced || []).forEach(function (m) {
         if (m.name === r.handle) steps.push('Found a DID record on ' + m.name + ' itself. It must be on _atproto.' + r.handle +
           ' (in most DNS panels: host/name "_atproto", type TXT).');
