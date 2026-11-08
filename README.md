@@ -15,6 +15,12 @@ facet-check checkout next to this repo (`../facet-check/facets.js`). Checked aga
 grapheme; a `---` line forces a break; optional numbering with its width reserved up front. `node
 bluesky-thread-splitter/test.js` (same facet-check checkout needed).
 
+`bluesky-handle-checker/` checks a custom-domain handle the way Bluesky resolves it (port of `HandleResolver`
+in `@atproto/identity`: `_atproto` TXT via DNS-over-HTTPS, exactly one `did=` record, then
+`/.well-known/atproto-did`; plus the DID document's `alsoKnownAs` and the AppView's current handle) and explains
+common mistakes (doubled zone name, duplicate records, missing prefix). Handle syntax matches `@atproto/syntax`
+on 30,000 random strings. `node bluesky-handle-checker/test.js` runs offline against a fake network.
+
 The 32-character `.txt` file is an [IndexNow](https://www.indexnow.org/) key. It's public by design: it only
 proves that pings about these URLs come from the site owner.
 
