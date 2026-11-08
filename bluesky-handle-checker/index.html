@@ -91,7 +91,9 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
 <h3>It worked for months and now says "Invalid Handle"</h3>
 <p>Bluesky re-checks domain handles from time to time, so a handle can break long after it was set up. Run a check above, then:</p>
 <ul>
-  <li><b>The check finds no record.</b> Usually the domain expired, or it moved to a new DNS host or site builder and the
+  <li><b>The check says the domain does not exist.</b> The registration has almost certainly expired (or the name
+    is misspelled). Renew it at your registrar; once it is back, check again and re-add the TXT record if it's gone.</li>
+  <li><b>The check finds no record.</b> Usually the domain moved to a new DNS host or site builder and the
     <code>_atproto</code> TXT record wasn't copied over. Add it again (the second box above gives you the exact value).</li>
   <li><b>The handle uses only the .well-known file.</b> Then it depends on your website. If the site (or the hosting
     service it lives on) is down or slow when Bluesky re-checks, the handle goes invalid until the next check. A DNS TXT

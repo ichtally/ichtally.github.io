@@ -14,8 +14,10 @@ function world(w) {
   return (url) => {
     const u = new URL(url), q = u.searchParams;
     if (u.host === "cloudflare-dns.com") {
-      const recs = (w.dns || {})[q.get("name")];
-      return json(200, recs ? { Status: 0, Answer: recs.map((d) => ({ type: 16, data: d })) } : { Status: 3 });
+      const name = q.get("name"), recs = (w.dns || {})[name];
+      // w.nx = domains that do not exist (NXDOMAIN for them and everything below); other names exist, maybe empty.
+      if ((w.nx || []).some((z) => name === z || name.endsWith("." + z))) return json(200, { Status: 3 });
+      return json(200, recs ? { Status: 0, Answer: recs.map((d) => ({ type: 16, data: d })) } : { Status: 0 });
     }
     if (u.pathname === "/.well-known/atproto-did") {
       const body = (w.wk || {})[u.host];
@@ -133,6 +135,17 @@ t("DNS done, handle not switched yet", () => run("example.com", {
 t("records right, Bluesky still shows handle.invalid", () => run("example.com", {
   dns: { "_atproto.example.com": ['"did=' + A + '"'] }, docs: { [A]: ["example.com"] }, profiles: { [A]: "handle.invalid" } })
   .then((r) => { assert.strictEqual(r.verdict.level, "wait"); assert.match(r.verdict.title, /handle\.invalid/); }));
+t("domain does not exist (expired): says renew, not 'add a record'", () => run("alice.gone-domain.net", { nx: ["gone-domain.net"] })
+  .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.title, /gone-domain\.net does not exist/);
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /expired/); assert.match(s, /host\/name "_atproto\.alice"/); assert.ok(!/No TXT record found/.test(s)); }));
+t("domain exists, no record: no expiry hint", () => run("nobody.example.com", {})
+  .then((r) => { assert.ok(!/expired|does not exist/.test(r.verdict.title + r.verdict.steps.join(" "))); }));
+t("co.uk-style name: apex guess exists, falls back to the normal advice", () => run("me.co.uk", { nx: ["me.co.uk"] })
+  .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.ok(!/expired/.test(r.verdict.steps.join(" "))); }));
+t("expired domain but Bluesky still resolves it from cache: no expiry verdict", () => run("old-domain.net", { nx: ["old-domain.net"],
+  resolve: { "old-domain.net": A } })
+  .then((r) => { assert.strictEqual(r.didSource, "appview"); assert.ok(!/does not exist/.test(r.verdict.title)); }));
 t("bad syntax stops early", () => run("me.local", {}).then((r) => {
   assert.strictEqual(r.verdict.level, "bad"); assert.strictEqual(r.dns, undefined);
 }));

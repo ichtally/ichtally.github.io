@@ -197,6 +197,11 @@
           return doh(fetchFn, name).then(function (d) { return { name: name, zone: z, d: d }; });
         });
         extra.push(doh(fetchFn, h).then(function (d) { return { name: h, zone: null, d: d }; }));
+        // Does the domain exist at all? NXDOMAIN on the registered name (RFC 8020: nothing below it exists either)
+        // almost always means it expired. Last two labels is a guess; for co.uk-style names it asks "co.uk",
+        // which exists, so the worst case is a missed hint, never a false one.
+        var apex = labels.slice(-2).join('.');
+        extra.push(doh(fetchFn, apex).then(function (d) { rep.apex = { name: apex, rcode: d.rcode }; return { name: apex, zone: null, d: { txt: [] } }; }));
       }
       return Promise.all(extra);
     }).then(function (misplaced) {
@@ -232,6 +237,14 @@
     var steps = [];
     if (r.dns.error) steps.push(r.dns.error);
     if (!r.did) {
+      if (r.apex && r.apex.rcode === 3) {
+        return { level: 'bad', title: 'The domain ' + r.apex.name + ' does not exist right now',
+          steps: steps.concat(['DNS answers "no such domain" (NXDOMAIN) for ' + r.apex.name + ', so there is nothing for Bluesky to check. ' +
+            'Check the spelling first. If it is right, the registration has most likely expired: check it at your registrar ' +
+            '(or with a WHOIS lookup) and renew it.',
+          'After renewing, it can take a few hours for the domain to come back. If the _atproto TXT record is gone, add it again: ' +
+            'host/name "' + hostField(r.handle, r.apex.name) + '", value "did=" followed by your DID. Then re-verify the handle in the app.']) };
+      }
       steps = steps.concat(r.dns.pick.notes);
       (r.misplaced || []).forEach(function (m) {
         if (m.name === r.handle) steps.push('Found a DID record on ' + m.name + ' itself. It must be on _atproto.' + r.handle +
