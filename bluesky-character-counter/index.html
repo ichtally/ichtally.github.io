@@ -85,6 +85,9 @@ family emoji is 5 code points and 18 bytes. Accented letters typed as two code p
 (counting the leading <code>/</code>, query and #fragment) is longer than 15 characters. That short text is what gets posted. The link itself still goes to the full URL.
 Links typed without <code>https://</code> (like <code>example.com/some/long/path</code>) are not shortened and count in full.
 Hosts with accents become punycode (<code>xn--...</code>) and non-ASCII path characters become <code>%XX</code> codes.</p>
+<h3>My text is too long. Can I make it a thread?</h3>
+<p>Yes: the <a href="../bluesky-thread-splitter/">thread splitter</a> cuts long text into posts that each fit,
+counted the same way as here, and breaks at paragraphs and sentences where it can.</p>
 <h3>What else changes when I post?</h3>
 <p>Leading blank lines and trailing whitespace are trimmed, and 3 or more line breaks in a row become 2.</p>
 <h3>My post fits in the app but fails through the API. Why?</h3>

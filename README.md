@@ -10,6 +10,11 @@ from `/facet-check/facets.js` (served from the facet-check repo on the same doma
 facet-check checkout next to this repo (`../facet-check/facets.js`). Checked against `@atproto/api` 0.30.3 on
 20,019 texts, 0 differences.
 
+`bluesky-thread-splitter/` cuts long text into posts that each fit 300 as the app counts them (uses
+`count.js` above). Breaks at paragraphs, then sentences/line breaks, then words; never inside a link or a
+grapheme; a `---` line forces a break; optional numbering with its width reserved up front. `node
+bluesky-thread-splitter/test.js` (same facet-check checkout needed).
+
 The 32-character `.txt` file is an [IndexNow](https://www.indexnow.org/) key. It's public by design: it only
 proves that pings about these URLs come from the site owner.
 
