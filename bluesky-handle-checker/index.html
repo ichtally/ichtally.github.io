@@ -116,7 +116,8 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
   <li><b>The handle isn't your own domain</b> (like <code>you.bsky.social</code>, or a name on another hosting service).
     Then your hosting service answers for the name and there is no DNS record for you to add. If it shows invalid but the check
     says "All good", the service was probably slow or down during a re-check: Settings → Account → Handle, type the same name,
-    Save. If no account uses that name any more, it was renamed, moved or deleted.</li>
+    Save. If no account uses that name any more, it was renamed, moved or deleted. If the hosting service itself doesn't answer
+    (it's down, or gone), the handle shows invalid until it's back; that is for whoever runs it to fix, not your DNS.</li>
 </ul>
 
 <h3>Where do I find my DID?</h3>
@@ -131,7 +132,8 @@ Cloudflare's public DNS (or Google's if that fails), which may see a change slig
 <ul>
   <li>To check, your browser asks: Cloudflare or Google DNS-over-HTTPS (for the TXT records, and the domain's nameservers if no record is found), your domain
     (<code>/.well-known/atproto-did</code>), <code>plc.directory</code> (DID document), the account's hosting server
-    (<code>describeServer</code>, to see which names it hands out; for a name that doesn't resolve, the parent domain's), and Bluesky's public API
+    (<code>describeServer</code>, to see which names it hands out; for a name that doesn't resolve, the parent domain's), Bluesky's relay
+    (<code>relay1.us-east.bsky.network</code>, only when that parent doesn't answer: is it a known hosting server?), and Bluesky's public API
     (<code>public.api.bsky.app</code>). Nothing goes to me; there is no server behind this page.</li>
   <li>Most websites don't allow other sites to read their files, so the browser often can't see your
     <code>.well-known</code> file. That's fine: Bluesky isn't a browser. In that case this page relies on what Bluesky's public API reports.</li>

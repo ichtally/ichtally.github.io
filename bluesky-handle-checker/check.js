@@ -193,6 +193,13 @@
     }).filter(function (d) { return d.length > 1 && h.length > d.length && h.slice(-d.length) === d; });
     return s[0] || null;
   }
+  // Has the Bluesky relay ever crawled this hostname as a PDS? 404 HostNotFound = no. Sends ACAO *.
+  var RELAY = 'https://relay1.us-east.bsky.network/xrpc/';
+  function hostKnown(fetchFn, host) {
+    return getJson(fetchFn, RELAY + 'com.atproto.sync.getHostStatus?hostname=' + encodeURIComponent(host)).then(function (r) {
+      return r.status === 200 && r.json && dnsName(r.json.hostname) === dnsName(host) ? r.json : null;
+    }, function () { return null; });
+  }
   function hostName(url) { return String(url || '').replace(/^https?:\/\//, '').replace(/[\/:].*$/, ''); }
 
   function check(rawInput, rawExpected, fetchFn) {
@@ -253,8 +260,13 @@
           extra.push(userDomains(fetchFn, 'https://' + parent).then(function (d) {
             var sfx = hostedSuffix(h, d);
             rep.parentHost = sfx ? { name: parent, suffix: sfx } : null;
-            return { name: parent, zone: null, d: { txt: [] } };
-          }));
+            if (d) return null;
+            // No answer at all. If the Bluesky relay knows the parent as a PDS, the hosting service itself is down.
+            // (The relay's own "status" field is not used: it says "offline" for many PDSes that answer fine.)
+            return hostKnown(fetchFn, parent).then(function (k) {
+              if (k) rep.parentHost = { name: parent, suffix: '.' + parent, down: true, accounts: k.accountCount };
+            });
+          }).then(function () { return { name: parent, zone: null, d: { txt: [] } }; }));
         }
         // _atproto.<h> is an alias. If a made-up name next to it is the same alias, it comes from a wildcard (*) record.
         if (rep.dns.cname) {
@@ -370,6 +382,17 @@
       }
       if (r.parentHost && !r.dns.pick.notes.length && !(r.misplaced || []).length) {
         var ph = r.parentHost;
+        if (ph.down) {
+          return { level: 'bad', title: 'The hosting service ' + ph.name + ' is not answering',
+            steps: steps.concat([ph.name + ' is a Bluesky hosting service (PDS): the Bluesky network has seen ' +
+              (ph.accounts ? ph.accounts + ' accounts' : 'accounts') + ' there. Handles ending in .' + ph.name +
+              ' are answered by that service, and right now it does not respond (checked ' +
+              'https://' + ph.name + '/xrpc/com.atproto.server.describeServer). So there is no DNS record for you to add.',
+            'If your account lives on ' + ph.name + ', the handle shows as invalid because the service is down or unreachable. ' +
+              'Usually that is temporary: wait, then check again, or ask whoever runs ' + ph.name + '.',
+            'If it is gone for good, your account (posts, follows) lives on that server too. Moving it elsewhere needs a backup or ' +
+              'the account\'s recovery (rotation) key; without either, the realistic option is a new account.']) };
+        }
         return { level: 'bad', title: 'No account uses ' + r.handle + ' on ' + ph.name + ' right now',
           steps: steps.concat([ph.name + ' is a hosting service: it hands out names ending in ' + ph.suffix + ' itself, and it ' +
             'answers for them. So there is no DNS record for you to add here.',

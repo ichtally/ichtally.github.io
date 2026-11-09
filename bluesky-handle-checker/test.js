@@ -46,6 +46,12 @@ function world(w) {
       const d = (w.hosts || {})[u.host];
       return d ? json(200, { did: "did:web:" + u.host, availableUserDomains: d }) : Promise.reject(new TypeError("Failed to fetch"));
     }
+    // w.relay = {host: accountCount}: hosts the Bluesky relay knows as PDSes (status "offline" even if up, like the real one).
+    if (u.pathname.endsWith("getHostStatus")) {
+      const hn = q.get("hostname"), n = (w.relay || {})[hn];
+      return n !== undefined ? json(200, { hostname: hn, accountCount: n, seq: 1, status: "offline" }) :
+        json(404, { error: "HostNotFound", message: "host not found" });
+    }
     if (u.pathname.endsWith("resolveHandle")) {
       const did = (w.resolve || {})[q.get("handle")];
       return did ? json(200, { did }) : json(400, { error: "InvalidRequest", message: "Unable to resolve handle" });
@@ -148,6 +154,17 @@ t("hosted name nobody uses: says renamed/moved, not 'add a TXT record'", () => r
   hosts: { "host.example.net": [".host.example.net"] } })
   .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.title, /No account uses gone\.host\.example\.net on host\.example\.net/);
     assert.ok(!/Add one: type TXT/.test(r.verdict.steps.join(" "))); }));
+// Real hosts 2026-11-09: tweet.pub (Cloudflare 521), gonnakms.lol (no connection) are PDSes the relay knows, not answering.
+t("hosting service down: says so, not 'add a TXT record'", () => run("amy.down.example.net", { relay: { "down.example.net": 19 } })
+  .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.title, /hosting service down\.example\.net is not answering/);
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /seen 19 accounts there/); assert.match(s, /no DNS record for you to add/);
+    assert.ok(!/Add one: type TXT/.test(s)); }));
+t("host answers but hands out other names: relay not asked, not 'down'", () => run("amy.up.example.net", {
+  hosts: { "up.example.net": [".other.example"] }, relay: { "up.example.net": 5 } })
+  .then((r) => { assert.strictEqual(r.parentHost, null); assert.doesNotMatch(r.verdict.title, /not answering/); }));
+t("parent unknown to the relay: normal advice", () => run("amy.site.example.com", {})
+  .then((r) => { assert.strictEqual(r.parentHost, null); assert.match(r.verdict.steps.join(" "), /Add one: type TXT/); }));
 t("nothing anywhere", () => run("nobody.example.com", {}).then((r) => {
   assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.steps.join(" "), /_atproto\.nobody/);
 }));
