@@ -96,6 +96,14 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
 <ul>
   <li><b>The check says the domain does not exist.</b> The registration has almost certainly expired (or the name
     is misspelled). Renew it at your registrar; once it is back, check again and re-add the TXT record if it's gone.</li>
+  <li><b>The check says the domain looks parked or for sale.</b> The domain still exists, but its nameservers now belong to a
+    parking or domain-marketplace service. Usually the registration lapsed and the domain was parked or resold.
+    Check whether you still own it. If you do, point the nameservers back to your DNS host and re-add the record; if not,
+    the handle can't come back, so pick a new one (your posts and followers stay with your account).</li>
+  <li><b>The check says <code>_atproto</code> is an alias (CNAME).</b> A wildcard <code>*</code> record now answers for every
+    name on the domain, often one the registrar added for parking or URL forwarding, and it hides the missing TXT record.
+    Adding an exact TXT record at <code>_atproto</code> wins over the wildcard. On a shared subdomain service, only the
+    domain's owner can fix the wildcard.</li>
   <li><b>The check finds no record.</b> Usually the domain moved to a new DNS host or site builder and the
     <code>_atproto</code> TXT record wasn't copied over. Add it again (the second box above gives you the exact value).</li>
   <li><b>The handle uses only the .well-known file.</b> Then it depends on your website. If the site (or the hosting
@@ -117,7 +125,7 @@ Cloudflare's public DNS (or Google's if that fails), which may see a change slig
 
 <h2>What this page sends, and limits</h2>
 <ul>
-  <li>To check, your browser asks: Cloudflare or Google DNS-over-HTTPS (for the TXT records), your domain
+  <li>To check, your browser asks: Cloudflare or Google DNS-over-HTTPS (for the TXT records, and the domain's nameservers if no record is found), your domain
     (<code>/.well-known/atproto-did</code>), <code>plc.directory</code> (DID document), and Bluesky's public API
     (<code>public.api.bsky.app</code>). Nothing goes to me; there is no server behind this page.</li>
   <li>Most websites don't allow other sites to read their files, so the browser often can't see your

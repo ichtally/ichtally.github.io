@@ -130,12 +130,33 @@
     });
   }
 
-  function doh(fetchFn, name) {
-    var q = 'name=' + encodeURIComponent(name) + '&type=TXT';
+  function dnsName(s) { return String(s || '').replace(/\.$/, '').toLowerCase(); }
+
+  // Nameservers of domain parking / marketplace services, and GoDaddy's "expired, pending deletion" servers.
+  // A domain served by these is not pointing at anyone's own DNS any more. Kept short on purpose: only names checked
+  // to exist, and only services whose whole job is parked or for-sale domains.
+  var PARKING = {
+    'pendingrenewaldeletion.com': 'GoDaddy (expired domain)', 'sedoparking.com': 'Sedo', 'parkingcrew.net': 'ParkingCrew',
+    'above.com': 'Above.com', 'dan.com': 'Dan.com', 'afternic.com': 'Afternic', 'hugedomains.com': 'HugeDomains',
+    'parity.domains': 'Parity'
+  };
+  function parkingOf(ns) {
+    for (var i = 0; i < ns.length; i++) {
+      for (var k in PARKING) if (ns[i] === k || ns[i].slice(-(k.length + 1)) === '.' + k) return PARKING[k];
+    }
+    return null;
+  }
+
+  // type: 'TXT' (default) or 'NS'. Also reports a CNAME sitting on `name` itself (a name with a CNAME can't
+  // have a TXT record of its own; resolvers follow the alias instead).
+  function doh(fetchFn, name, type) {
+    var q = 'name=' + encodeURIComponent(name) + '&type=' + (type || 'TXT');
     function shape(res) {
-      var j = res.json || {};
-      var txt = (j.Answer || []).filter(function (a) { return a.type === 16; }).map(function (a) { return parseTxtData(a.data); });
-      return { rcode: j.Status, txt: txt };
+      var j = res.json || {}, ans = j.Answer || [];
+      var txt = ans.filter(function (a) { return a.type === 16; }).map(function (a) { return parseTxtData(a.data); });
+      var ns = ans.filter(function (a) { return a.type === 2; }).map(function (a) { return dnsName(a.data); });
+      var c = ans.filter(function (a) { return a.type === 5 && dnsName(a.name) === dnsName(name); })[0];
+      return { rcode: j.Status, txt: txt, ns: ns, cname: c ? dnsName(c.data) : null };
     }
     return getJson(fetchFn, 'https://cloudflare-dns.com/dns-query?' + q, { accept: 'application/dns-json' }).then(shape)
       .catch(function () { return getJson(fetchFn, 'https://dns.google/resolve?' + q).then(shape); })
@@ -202,8 +223,19 @@
         // Does the domain exist at all? NXDOMAIN on the registered name (RFC 8020: nothing below it exists either)
         // almost always means it expired. Last two labels is a guess; for co.uk-style names it asks "co.uk",
         // which exists, so the worst case is a missed hint, never a false one.
+        // Asking for NS also shows where the domain is hosted: parking / for-sale nameservers mean it lapsed or was sold.
         var apex = labels.slice(-2).join('.');
-        extra.push(doh(fetchFn, apex).then(function (d) { rep.apex = { name: apex, rcode: d.rcode }; return { name: apex, zone: null, d: { txt: [] } }; }));
+        extra.push(doh(fetchFn, apex, 'NS').then(function (d) {
+          rep.apex = { name: apex, rcode: d.rcode, ns: d.ns || [], parked: parkingOf(d.ns || []) };
+          return { name: apex, zone: null, d: { txt: [] } };
+        }));
+        // _atproto.<h> is an alias. If a made-up name next to it is the same alias, it comes from a wildcard (*) record.
+        if (rep.dns.cname) {
+          extra.push(doh(fetchFn, 'wildcard-probe-q7x.' + h).then(function (d) {
+            rep.dns.wildcard = !!d.cname && d.cname === rep.dns.cname;
+            return { name: 'wildcard-probe-q7x.' + h, zone: null, d: { txt: [] } };
+          }));
+        }
       }
       // Several different did= records: find out whose each one is. Typical case: an organisation with a second
       // account (e.g. a sports or language desk) added that account's record at the main name.
@@ -292,6 +324,17 @@
           'After renewing, it can take a few hours for the domain to come back. If the _atproto TXT record is gone, add it again: ' +
             'host/name "' + hostField(r.handle, r.apex.name) + '", value "did=" followed by your DID. Then re-verify the handle in the app.']) };
       }
+      if (r.apex && r.apex.parked) {
+        return { level: 'bad', title: 'The domain ' + r.apex.name + ' looks parked, for sale, or expired',
+          steps: steps.concat(['Its nameservers are ' + r.apex.ns.join(', ') + ', which belong to ' + r.apex.parked +
+            ', a domain parking / marketplace service. That usually means the registration lapsed and the domain was ' +
+            'parked or sold, so your DNS records (including _atproto) are no longer being served.',
+          'Check at your registrar (or with a WHOIS lookup) whether you still own ' + r.apex.name + '. If you do, renew it if needed, ' +
+            'set its nameservers back to your DNS provider, and re-add the TXT record: host/name "' + hostField(r.handle, r.apex.name) +
+            '", value "did=" followed by your DID. Then re-verify the handle in the app.',
+          'If someone else owns it now, the handle can not come back; pick a new one in the app (your posts and followers stay, they ' +
+            'belong to your DID, not the handle).']) };
+      }
       steps = steps.concat(r.dns.pick.notes);
       steps = steps.concat(dupeSteps(r));
       (r.misplaced || []).forEach(function (m) {
@@ -300,8 +343,20 @@
         else steps.push('Found the record at ' + m.name + ': the full name was typed into a DNS panel that adds "' + m.zone +
           '" by itself. Set the host/name field to just "' + hostField(r.handle, m.zone) + '".');
       });
-      if (!(r.misplaced || []).length && !r.dns.pick.notes.length) {
-        steps.push(r.dns.txt.length ? 'There are TXT records on _atproto.' + r.handle + ', but none starts with "did=".' :
+      var zone2 = r.handle.split('.').slice(-2).join('.');
+      if (!(r.misplaced || []).length && !r.dns.pick.notes.length && r.dns.cname) {
+        steps.push('_atproto.' + r.handle + ' is an alias (CNAME) for ' + r.dns.cname + ', which has no did= record. ' +
+          (r.dns.wildcard ? 'It comes from a wildcard (*) record on the domain, often added by the registrar for parking or URL ' +
+            'forwarding, so you may never have added it yourself.' : 'A name with a CNAME can not have a TXT record of its own.'));
+        steps.push(r.dns.wildcard ?
+          'Add the TXT record anyway: an exact record at _atproto.' + r.handle + ' takes priority over the wildcard. Type TXT, host/name "' +
+            hostField(r.handle, zone2) + '", value "did=" followed by your DID.' :
+          'Delete the CNAME on _atproto.' + r.handle + ', then add a TXT record there: host/name "' + hostField(r.handle, zone2) +
+            '", value "did=" followed by your DID.');
+        if (r.handle.split('.').length > 2) steps.push('If ' + zone2 + ' is not your own domain (a shared or free subdomain ' +
+          'service), only its owner can change this; ask them.');
+      } else if (!(r.misplaced || []).length && !r.dns.pick.notes.length) {
+        steps.push(r.dns.txt.length ?'There are TXT records on _atproto.' + r.handle + ', but none starts with "did=".' :
           'No TXT record found at _atproto.' + r.handle + '. Add one: type TXT, host/name "' +
           hostField(r.handle, r.handle.split('.').slice(-2).join('.')) + '"' +
           (r.handle.split('.').length > 2 ? ' (if the domain in your DNS panel is ' + r.handle.split('.').slice(-2).join('.') + ')' : '') +

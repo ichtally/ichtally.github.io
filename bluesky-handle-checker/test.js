@@ -17,6 +17,18 @@ function world(w) {
       const name = q.get("name"), recs = (w.dns || {})[name];
       // w.nx = domains that do not exist (NXDOMAIN for them and everything below); other names exist, maybe empty.
       if ((w.nx || []).some((z) => name === z || name.endsWith("." + z))) return json(200, { Status: 3 });
+      // w.ns = {domain: [nameservers]} (answers type=NS), w.cname = {name: target}, w.wildcard = {zone: target}
+      // (*.zone CNAME target, for names with no records of their own). A CNAME answer also carries the target's TXT.
+      if (q.get("type") === "NS") {
+        const ns = (w.ns || {})[name];
+        return json(200, ns ? { Status: 0, Answer: ns.map((d) => ({ name, type: 2, data: d + "." })) } : { Status: 0 });
+      }
+      const wz = Object.keys(w.wildcard || {}).find((z) => name.endsWith("." + z));
+      const target = (w.cname || {})[name] || (!recs && wz ? w.wildcard[wz] : null);
+      if (target) {
+        const tt = ((w.dns || {})[target] || []).map((d) => ({ name: target, type: 16, data: d }));
+        return json(200, { Status: 0, Answer: [{ name, type: 5, data: target + "." }].concat(tt) });
+      }
       return json(200, recs ? { Status: 0, Answer: recs.map((d) => ({ type: 16, data: d })) } : { Status: 0 });
     }
     if (u.pathname === "/.well-known/atproto-did") {
@@ -162,6 +174,37 @@ t("co.uk-style name: apex guess exists, falls back to the normal advice", () => 
 t("expired domain but Bluesky still resolves it from cache: no expiry verdict", () => run("old-domain.net", { nx: ["old-domain.net"],
   resolve: { "old-domain.net": A } })
   .then((r) => { assert.strictEqual(r.didSource, "appview"); assert.ok(!/does not exist/.test(r.verdict.title)); }));
+// Real case 2026-11-09: domain lapsed, now on a parking service's nameservers (exists, so no NXDOMAIN).
+t("parked domain: says parked/expired, not 'add a record'", () => run("asunder.net", {
+  ns: { "asunder.net": ["ns1.lander.d.parity.domains", "ns2.lander.d.parity.domains"] } })
+  .then((r) => { assert.match(r.verdict.title, /asunder\.net looks parked/);
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /Parity/); assert.match(s, /host\/name "_atproto"/); assert.ok(!/No TXT record found/.test(s)); }));
+t("GoDaddy pending-deletion nameservers count as parked", () => run("me.old-site.com", {
+  ns: { "old-site.com": ["NS1.PENDINGRENEWALDELETION.COM", "ns2.pendingrenewaldeletion.com"] } })
+  .then((r) => { assert.match(r.verdict.title, /old-site\.com looks parked/); assert.match(r.verdict.steps[1], /"_atproto\.me"/); }));
+t("normal nameservers: normal advice, and lookalike names don't match", () => run("me.example.com", {
+  ns: { "example.com": ["ns1.notdan.com", "a.iana-servers.net"] } })
+  .then((r) => { assert.ok(!/parked/.test(r.verdict.title)); assert.match(r.verdict.steps.join(" "), /No TXT record found/); }));
+t("parked domain but the handle still resolves: no parked verdict", () => run("cached.net", {
+  ns: { "cached.net": ["ns1.sedoparking.com"] }, resolve: { "cached.net": A } })
+  .then((r) => { assert.ok(!/parked/.test(r.verdict.title)); }));
+// Real case 2026-11-09: *.fluffy.monster CNAME pixie.porkbun.com (registrar parking) swallowed _atproto.yuri.fluffy.monster.
+t("wildcard CNAME on _atproto: explains it, exact TXT overrides it", () => run("yuri.fluffy.net", {
+  wildcard: { "fluffy.net": "pixie.registrar.example" } })
+  .then((r) => { assert.strictEqual(r.dns.cname, "pixie.registrar.example"); assert.strictEqual(r.dns.wildcard, true);
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /wildcard/); assert.match(s, /takes priority/); assert.match(s, /host\/name "_atproto\.yuri"/);
+    assert.match(s, /fluffy\.net is not your own domain/); assert.ok(!/No TXT record found/.test(s)); }));
+t("explicit CNAME on _atproto (no wildcard): says delete it", () => run("example.com", {
+  cname: { "_atproto.example.com": "elsewhere.example.net" } })
+  .then((r) => { assert.strictEqual(r.dns.wildcard, false);
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /Delete the CNAME/); assert.ok(!/wildcard/.test(s)); assert.ok(!/not your own domain/.test(s)); }));
+t("CNAME to a name that has the did= record: resolves fine", () => run("example.com", {
+  cname: { "_atproto.example.com": "_atproto.other.example" }, dns: { "_atproto.other.example": ['"did=' + A + '"'] },
+  docs: { [A]: ["example.com"] }, profiles: { [A]: "example.com" }, resolve: { "example.com": A } })
+  .then((r) => { assert.strictEqual(r.did, A); assert.strictEqual(r.verdict.level, "ok"); }));
 t("bad syntax stops early", () => run("me.local", {}).then((r) => {
   assert.strictEqual(r.verdict.level, "bad"); assert.strictEqual(r.dns, undefined);
 }));
