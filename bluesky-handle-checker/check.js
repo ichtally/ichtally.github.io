@@ -178,6 +178,23 @@
 
   var API = 'https://public.api.bsky.app/xrpc/';
 
+  // Handles like alice.bsky.social are handed out by a hosting service (PDS). Its describeServer lists the domains it
+  // gives out ("availableUserDomains", e.g. ".bsky.social"); the service answers for those names, not the user's DNS.
+  function userDomains(fetchFn, base) {
+    return getJson(fetchFn, String(base).replace(/\/+$/, '') + '/xrpc/com.atproto.server.describeServer').then(function (r) {
+      var d = r.status === 200 && r.json && r.json.availableUserDomains;
+      return Array.isArray(d) ? d : null;
+    }, function () { return null; });
+  }
+  function hostedSuffix(h, domains) {
+    var s = (domains || []).map(function (d) {
+      d = String(d).toLowerCase();
+      return d.charAt(0) === '.' ? d : '.' + d;
+    }).filter(function (d) { return d.length > 1 && h.length > d.length && h.slice(-d.length) === d; });
+    return s[0] || null;
+  }
+  function hostName(url) { return String(url || '').replace(/^https?:\/\//, '').replace(/[\/:].*$/, ''); }
+
   function check(rawInput, rawExpected, fetchFn) {
     fetchFn = fetchFn || root.fetch.bind(root);
     var n = normalizeInput(rawInput);
@@ -229,6 +246,16 @@
           rep.apex = { name: apex, rcode: d.rcode, ns: d.ns || [], parked: parkingOf(d.ns || []) };
           return { name: apex, zone: null, d: { txt: [] } };
         }));
+        // Nothing resolves and the parent is a hosting service that hands out <name>.<parent>: there is no DNS for the
+        // user to fix; the account was renamed, moved, deleted, or the service is down.
+        if (!rep.did && labels.length > 2) {
+          var parent = labels.slice(1).join('.');
+          extra.push(userDomains(fetchFn, 'https://' + parent).then(function (d) {
+            var sfx = hostedSuffix(h, d);
+            rep.parentHost = sfx ? { name: parent, suffix: sfx } : null;
+            return { name: parent, zone: null, d: { txt: [] } };
+          }));
+        }
         // _atproto.<h> is an alias. If a made-up name next to it is the same alias, it comes from a wildcard (*) record.
         if (rep.dns.cname) {
           extra.push(doh(fetchFn, 'wildcard-probe-q7x.' + h).then(function (d) {
@@ -270,6 +297,12 @@
         rep.doc = docs[0]; rep.aka = akaHandles(docs[0]); rep.pds = pdsOf(docs[0]);
         rep.profile = docs[1] ? { handle: docs[1].handle, displayName: docs[1].displayName || '' } : null;
       }
+      if (!rep.pds || !/^https:\/\//.test(rep.pds)) return null;
+      return userDomains(fetchFn, rep.pds).then(function (d) {
+        var sfx = hostedSuffix(h, d);
+        rep.hosted = sfx ? { pds: hostName(rep.pds), suffix: sfx } : null;
+      });
+    }).then(function () {
       rep.verdict = verdict(rep);
       return rep;
     });
@@ -335,6 +368,15 @@
           'If someone else owns it now, the handle can not come back; pick a new one in the app (your posts and followers stay, they ' +
             'belong to your DID, not the handle).']) };
       }
+      if (r.parentHost && !r.dns.pick.notes.length && !(r.misplaced || []).length) {
+        var ph = r.parentHost;
+        return { level: 'bad', title: 'No account uses ' + r.handle + ' on ' + ph.name + ' right now',
+          steps: steps.concat([ph.name + ' is a hosting service: it hands out names ending in ' + ph.suffix + ' itself, and it ' +
+            'answers for them. So there is no DNS record for you to add here.',
+          'Most likely the account changed its handle, moved to another host, or was deleted. Check the spelling. If it is your ' +
+            'account, your posts and followers belong to your DID, not the name: log in and pick a handle again in Settings, ' +
+            'Account, Handle. If the service itself seems down, try again later or contact ' + ph.name + '.']) };
+      }
       steps = steps.concat(r.dns.pick.notes);
       steps = steps.concat(dupeSteps(r));
       (r.misplaced || []).forEach(function (m) {
@@ -387,6 +429,15 @@
         steps: steps.concat(['The account currently claims: ' + ((r.aka || []).join(', ') || 'no handle') + '.',
           'Finish in the Bluesky app: change your handle, choose the option for your own domain, enter ' + r.handle + ' and verify.']) };
     }
+    if (r.profile && r.profile.handle === r.handle && r.hosted) {
+      var sub = r.handle.slice(0, -r.hosted.suffix.length);
+      steps.push('This handle comes from your hosting service, which hands out names ending in ' + r.hosted.suffix +
+        ' (your account lives on ' + r.hosted.pds + '). The service answers for it, so there is nothing for you to set up in DNS.');
+      steps.push('Still seeing "Invalid Handle" in the app? Then it works right now; the service was probably slow or down during ' +
+        'an earlier re-check. To force a fresh check: Settings, Account, Handle, type ' + sub + ' as the new handle (the ' +
+        r.hosted.suffix + ' part is added for you), then Save. If it keeps happening, tell your hosting service.');
+      return { level: 'ok', title: 'All good: ' + r.handle + ' is a working Bluesky handle', steps: steps };
+    }
     if (r.profile && r.profile.handle === r.handle) {
       if (r.didSource === 'http') steps.push('This handle works through the .well-known file only. That is allowed, but if the ' +
         'website is down or slow when Bluesky re-checks, the handle shows as invalid until the next check. A DNS TXT record ' +
@@ -405,6 +456,6 @@
 
   var api = { normalizeInput: normalizeInput, validateHandle: validateHandle, parseTxtData: parseTxtData, pickDid: pickDid,
     parseWellKnown: parseWellKnown, hostField: hostField, akaHandles: akaHandles, pdsOf: pdsOf, didDocUrl: didDocUrl, isValidDid: isValidDid,
-    check: check, verdict: verdict };
+    hostedSuffix: hostedSuffix, check: check, verdict: verdict };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.HandleCheck = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -41,6 +41,11 @@ function world(w) {
       return aka ? json(200, { id: did, alsoKnownAs: aka.map((h) => "at://" + h),
         service: [{ id: "#atproto_pds", type: "AtprotoPersonalDataServer", serviceEndpoint: "https://pds.example.net" }] }) : json(404, {});
     }
+    // w.hosts = {host: availableUserDomains} for hosting services (PDS); other hosts' describeServer fails.
+    if (u.pathname.endsWith("describeServer")) {
+      const d = (w.hosts || {})[u.host];
+      return d ? json(200, { did: "did:web:" + u.host, availableUserDomains: d }) : Promise.reject(new TypeError("Failed to fetch"));
+    }
     if (u.pathname.endsWith("resolveHandle")) {
       const did = (w.resolve || {})[q.get("handle")];
       return did ? json(200, { did }) : json(400, { error: "InvalidRequest", message: "Unable to resolve handle" });
@@ -120,6 +125,29 @@ t("ok via well-known", () => run("bob.example.org", { wk: { "bob.example.org": A
 t("well-known blocked by CORS, Bluesky resolves it: still ok", () => run("bob.example.org", {
   resolve: { "bob.example.org": A }, docs: { [A]: ["bob.example.org"] }, profiles: { [A]: "bob.example.org" } })
   .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.strictEqual(r.didSource, "appview"); }));
+t("hostedSuffix", () => {
+  assert.strictEqual(H.hostedSuffix("alice.bsky.social", [".bsky.social"]), ".bsky.social");
+  assert.strictEqual(H.hostedSuffix("alice.bsky.social", ["bsky.social"]), ".bsky.social");
+  assert.strictEqual(H.hostedSuffix("bsky.social", [".bsky.social"]), null);
+  assert.strictEqual(H.hostedSuffix("alice.notbsky.social", [".bsky.social"]), null);
+  assert.strictEqual(H.hostedSuffix("alice.bsky.social", null), null);
+  assert.strictEqual(H.hostedSuffix("alice.bsky.social", ["."]), null);
+});
+// Real case 2026-11-09: aurorashelf.northsky.social showed Invalid Handle; works via the host's .well-known.
+t("hosted handle (PDS subdomain), ok: no DNS advice, re-save the name part", () => run("aurora.pds.example.net", {
+  wk: { "aurora.pds.example.net": A }, docs: { [A]: ["aurora.pds.example.net"] }, profiles: { [A]: "aurora.pds.example.net" },
+  hosts: { "pds.example.net": [".pds.example.net"] } })
+  .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.deepStrictEqual(r.hosted, { pds: "pds.example.net", suffix: ".pds.example.net" });
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /hosting service, which hands out names ending in \.pds\.example\.net \(your account lives on pds\.example\.net\)/); assert.match(s, /type aurora as the new handle/);
+    assert.ok(!/well-known file only|I have my own domain|TXT/.test(s)); }));
+t("own domain on a PDS that hands out other names: normal advice", () => run("bob.example.org", { wk: { "bob.example.org": A + "\n" },
+  docs: { [A]: ["bob.example.org"] }, profiles: { [A]: "bob.example.org" }, hosts: { "pds.example.net": [".pds.example.net"] } })
+  .then((r) => { assert.strictEqual(r.hosted, null); assert.match(r.verdict.steps.join(" "), /I have my own domain/); }));
+t("hosted name nobody uses: says renamed/moved, not 'add a TXT record'", () => run("gone.host.example.net", {
+  hosts: { "host.example.net": [".host.example.net"] } })
+  .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.title, /No account uses gone\.host\.example\.net on host\.example\.net/);
+    assert.ok(!/Add one: type TXT/.test(r.verdict.steps.join(" "))); }));
 t("nothing anywhere", () => run("nobody.example.com", {}).then((r) => {
   assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.steps.join(" "), /_atproto\.nobody/);
 }));
