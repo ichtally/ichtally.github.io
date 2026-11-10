@@ -118,6 +118,10 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
     says "All good", the service was probably slow or down during a re-check: Settings → Account → Handle, type the same name,
     Save. If no account uses that name any more, it was renamed, moved or deleted. If the hosting service itself doesn't answer
     (it's down, or gone), the handle shows invalid until it's back; that is for whoever runs it to fix, not your DNS.</li>
+  <li><b>The domain now points to a different account.</b> Then the old account loses the handle. Enter the old account's
+    handle or DID in the second box to see this. If the account the domain points to is suspended or deactivated, the check
+    says so. Bridged fediverse accounts (Bridgy Fed) can hit this when the fediverse address changes: a new bridged account
+    takes over the handle and the old one, with the followers, shows "Invalid Handle".</li>
 </ul>
 
 <h3>Where do I find my DID?</h3>
@@ -179,7 +183,7 @@ Cloudflare's public DNS (or Google's if that fails), which may see a change slig
       row('Account the domain points to', el('code', r.did));
       if (r.aka) row('Handles that account claims', r.aka.length ? codes(r.aka) : el('span', 'none', 'badt'));
       if (r.pds) row('Its PDS', el('code', r.pds));
-      row('Bluesky currently shows', r.profile ? r.profile.handle + (r.profile.displayName ? ' (' + r.profile.displayName + ')' : '') : 'no profile found',
+      row('Bluesky currently shows', r.profile ? r.profile.handle + (r.profile.displayName ? ' (' + r.profile.displayName + ')' : '') : r.profileError ? 'no profile (' + r.profileError + ')' : 'no profile found',
         r.profile && r.profile.handle === r.handle ? 'okt' : 'badt');
     }
   }

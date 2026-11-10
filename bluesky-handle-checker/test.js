@@ -39,7 +39,8 @@ function world(w) {
     if (u.host === "plc.directory") {
       const did = u.pathname.slice(1), aka = (w.docs || {})[did];
       return aka ? json(200, { id: did, alsoKnownAs: aka.map((h) => "at://" + h),
-        service: [{ id: "#atproto_pds", type: "AtprotoPersonalDataServer", serviceEndpoint: "https://pds.example.net" }] }) : json(404, {});
+        service: [{ id: "#atproto_pds", type: "AtprotoPersonalDataServer",
+          serviceEndpoint: (w.pds || {})[did] || "https://pds.example.net" }] }) : json(404, {});
     }
     // w.hosts = {host: availableUserDomains} for hosting services (PDS); other hosts' describeServer fails.
     if (u.pathname.endsWith("describeServer")) {
@@ -58,6 +59,9 @@ function world(w) {
     }
     if (u.pathname.endsWith("getProfile")) {
       const h = (w.profiles || {})[q.get("actor")];
+      // w.profileErrors = {did: "AccountTakedown" | "AccountDeactivated"} (same shape as the real AppView's 400 answer)
+      const pe = (w.profileErrors || {})[q.get("actor")];
+      if (pe) return json(400, { error: pe, message: pe === "AccountTakedown" ? "Account has been suspended" : "Account is deactivated" });
       return h ? json(200, { did: q.get("actor"), handle: h }) : json(400, { message: "Profile not found" });
     }
     return Promise.reject(new Error("unexpected " + url));
@@ -208,6 +212,25 @@ t("DNS done, handle not switched yet", () => run("example.com", {
 t("records right, Bluesky still shows handle.invalid", () => run("example.com", {
   dns: { "_atproto.example.com": ['"did=' + A + '"'] }, docs: { [A]: ["example.com"] }, profiles: { [A]: "handle.invalid" } })
   .then((r) => { assert.strictEqual(r.verdict.level, "wait"); assert.match(r.verdict.title, /handle\.invalid/); }));
+// Real case 2026-11-10: a Bridgy Fed account got a new DID that took over the handle; Bluesky suspended the new one, so the
+// old one (with the followers) showed "Invalid Handle" while both directions of the new one checked out.
+t("records right but account suspended (bridged): says so, not 'wait'", () => run("band.music-host.net", {
+  wk: { "band.music-host.net": B }, docs: { [B]: ["band.music-host.net"] }, profileErrors: { [B]: "AccountTakedown" },
+  resolve: { "band.music-host.net": B } })
+  .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.title, /suspended/);
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /AccountTakedown/); assert.match(s, /older account/); assert.ok(!/Bridgy/.test(s)); }));
+t("bridged + suspended mentions Bridgy Fed", () => run("band.music-host.net", {
+  wk: { "band.music-host.net": B }, docs: { [B]: ["band.music-host.net"] }, profileErrors: { [B]: "AccountTakedown" },
+  pds: { [B]: "https://atproto.brid.gy" } })
+  .then((r) => { assert.strictEqual(r.pds, "https://atproto.brid.gy"); assert.match(r.verdict.steps.join(" "), /Bridgy Fed/); }));
+t("records right but account deactivated", () => run("example.com", {
+  dns: { "_atproto.example.com": ['"did=' + A + '"'] }, docs: { [A]: ["example.com"] }, profileErrors: { [A]: "AccountDeactivated" } })
+  .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.title, /deactivated/);
+    assert.match(r.verdict.steps.join(" "), /Logging in to it again/); }));
+t("profile simply missing: still the old 'wait' verdict", () => run("example.com", {
+  dns: { "_atproto.example.com": ['"did=' + A + '"'] }, docs: { [A]: ["example.com"] } })
+  .then((r) => { assert.strictEqual(r.verdict.level, "wait"); assert.strictEqual(r.profileError, null); }));
 t("domain does not exist (expired): says renew, not 'add a record'", () => run("alice.gone-domain.net", { nx: ["gone-domain.net"] })
   .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.title, /gone-domain\.net does not exist/);
     const s = r.verdict.steps.join(" ");

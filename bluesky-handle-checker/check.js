@@ -301,13 +301,16 @@
       var url = didDocUrl(rep.did);
       return Promise.all([
         url ? getJson(fetchFn, url).then(function (r) { return r.status === 200 ? r.json : null; }, function () { return null; }) : null,
+        // Keep the error name too: "AccountTakedown" / "AccountDeactivated" explain an invalid handle better than DNS can.
         getJson(fetchFn, API + 'app.bsky.actor.getProfile?actor=' + encodeURIComponent(rep.did))
-          .then(function (r) { return r.json && r.json.handle ? r.json : null; }, function () { return null; })
+          .then(function (r) { return r.json && r.json.handle ? r.json : { error: (r.json && r.json.error) || null }; },
+            function () { return null; })
       ]);
     }).then(function (docs) {
       if (docs) {
         rep.doc = docs[0]; rep.aka = akaHandles(docs[0]); rep.pds = pdsOf(docs[0]);
-        rep.profile = docs[1] ? { handle: docs[1].handle, displayName: docs[1].displayName || '' } : null;
+        rep.profile = docs[1] && docs[1].handle ? { handle: docs[1].handle, displayName: docs[1].displayName || '' } : null;
+        rep.profileError = docs[1] && docs[1].error ? String(docs[1].error) : null;
       }
       if (!rep.pds || !/^https:\/\//.test(rep.pds)) return null;
       return userDomains(fetchFn, rep.pds).then(function (d) {
@@ -451,6 +454,27 @@
       return { level: 'wait', title: 'Half done: the domain points to the account, but the account has not switched to it',
         steps: steps.concat(['The account currently claims: ' + ((r.aka || []).join(', ') || 'no handle') + '.',
           'Finish in the Bluesky app: change your handle, choose the option for your own domain, enter ' + r.handle + ' and verify.']) };
+    }
+    // The records are fine, but the account they point to is suspended or switched off. Typical symptom: an OLDER account that
+    // used to have this handle shows "Invalid Handle", because the domain now points to this one.
+    if (r.profileError === 'AccountTakedown' || r.profileError === 'AccountDeactivated') {
+      var down = r.profileError === 'AccountTakedown';
+      var older = 'If an older account used to have ' + r.handle + ', that one now shows "Invalid Handle", because the domain points ' +
+        'away from it. Either point the record back to the older account\'s DID (then re-verify the handle there), or give the ' +
+        'older account a different handle.';
+      var out = [r.handle + ' points to ' + r.did + ' and that account claims it back, so the handle setup itself is fine.',
+        down ? 'But Bluesky\'s public API answers "AccountTakedown" for this account: it has been suspended, so it does not show ' +
+          'up in the app. DNS changes can not fix that; if it is your account and you think it is a mistake, contact Bluesky ' +
+          'support or moderation.' :
+          'But Bluesky\'s public API answers "AccountDeactivated": the owner switched the account off. Logging in to it again ' +
+          'reactivates it.',
+        older];
+      if (/(^|\.)brid\.gy$/.test(hostName(r.pds))) out.push('This account is bridged from the fediverse by Bridgy Fed (it lives on ' +
+        hostName(r.pds) + '). If the fediverse account moved or its address changed, Bridgy Fed can create a NEW Bluesky account ' +
+        'that takes over the same handle, and the older bridged account (with the followers) loses it. The fediverse server\'s ' +
+        'admin or Bridgy Fed (https://fed.brid.gy/docs) can sort that out.');
+      return { level: 'bad', title: down ? 'The records are right, but Bluesky has suspended the account they point to' :
+        'The records are right, but the account they point to is deactivated', steps: steps.concat(out) };
     }
     if (r.profile && r.profile.handle === r.handle && r.hosted) {
       var sub = r.handle.slice(0, -r.hosted.suffix.length);
