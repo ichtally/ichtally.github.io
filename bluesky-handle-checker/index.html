@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bluesky handle checker: why isn't my custom domain handle working?</title>
-<meta name="description" content="Free checker for Bluesky custom domain handles. Looks up the _atproto TXT record and /.well-known/atproto-did the way Bluesky does, checks the account side, and tells you exactly what to fix (wrong host name, duplicate records, missing did= prefix, Invalid Handle).">
+<title>Bluesky "Invalid Handle" checker: why isn't my handle working?</title>
+<meta name="description" content="Free checker for Bluesky handles that show Invalid Handle, custom domains and hosted names alike. Looks up the _atproto TXT record and /.well-known/atproto-did the way Bluesky does, checks the account and its host, and says what to fix: expired or parked domain, duplicate records, missing did= prefix, wrong host name.">
 <link rel="canonical" href="https://ichtally.github.io/bluesky-handle-checker/">
 <link rel="icon" href="../avatar.png">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Bluesky handle checker (custom domains)">
+<meta property="og:title" content="Bluesky handle checker: why does it say Invalid Handle?">
 <meta property="og:description" content="Is your domain handle set up right? Checks the _atproto TXT record and .well-known file the way Bluesky resolves them, and says what to fix.">
 <meta property="og:url" content="https://ichtally.github.io/bluesky-handle-checker/">
 <meta property="og:image" content="https://ichtally.github.io/avatar.png">
@@ -40,11 +40,11 @@
 <body>
 <main>
 <h1>Bluesky handle checker</h1>
-<p class="sub">Set up your own domain as a Bluesky handle and it isn't working? Enter it below. This page looks it up the
-way Bluesky's servers do and tells you what's wrong.</p>
+<p class="sub">Your handle shows "Invalid Handle", or the domain you set up as a handle isn't working? Enter it below. This page
+looks it up the way Bluesky's servers do and tells you what's wrong.</p>
 
 <form id="f">
-  <div><label for="h">Domain handle to check</label>
+  <div><label for="h">Handle to check</label>
   <input id="h" placeholder="alice.example.com" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
   <div><label for="ex">Optional: the account it should belong to (current handle like you.bsky.social, or your DID)</label>
   <input id="ex" placeholder="you.bsky.social" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
