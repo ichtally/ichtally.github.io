@@ -288,13 +288,23 @@
             getJson(fetchFn, API + 'app.bsky.actor.getProfile?actor=' + encodeURIComponent(did))
               .then(function (r) { return r.json && r.json.handle ? r.json : null; }, function () { return null; })
           ]).then(function (x) {
-            return { did: did, aka: x[0] ? akaHandles(x[0]) : null, displayName: x[1] ? (x[1].displayName || '') : '' };
+            var o = { did: did, aka: x[0] ? akaHandles(x[0]) : null, displayName: x[1] ? (x[1].displayName || '') : '' };
+            // A sibling account under this domain: does it already have its own record where it belongs?
+            var sh = o.aka && o.aka[0];
+            if (!sh || sh === h || sh.slice(-(h.length + 1)) !== '.' + h) return o;
+            return doh(fetchFn, '_atproto.' + sh).then(function (d) {
+              o.ownRecord = !d.cname && (d.txt || []).some(function (t) { return t.trim() === 'did=' + did; });
+              return o;
+            });
           });
         }));
       }
       return Promise.all([Promise.all(extra), dupesP]).then(function (x) { rep.dupes = x[1]; return x[0]; });
     }).then(function (misplaced) {
       rep.misplaced = misplaced.filter(function (m) {
+        // A CNAME on the name means its TXT answers belong to the alias target (often a wildcard * pointing at the
+        // domain itself), not to a record someone typed there. A name with a CNAME can't hold its own TXT.
+        if (m.d.cname) return false;
         return m.d.txt.some(function (t) { return /did[=:]/i.test(t); });
       }).map(function (m) { return { name: m.name, zone: m.zone, txt: m.d.txt.filter(function (t) { return /did[=:]/i.test(t); }) }; });
       if (!rep.did || !isValidDid(rep.did)) return null;
@@ -350,7 +360,8 @@
         (x.displayName ? ' ("' + x.displayName + '")' : '') + (h ? ', which uses ' + h : '') + '.';
       if (h && h !== r.handle && h.slice(-(r.handle.length + 1)) === '.' + r.handle) {
         var zone = r.handle.split('.').slice(-2).join('.');
-        s += ' Its own record goes at _atproto.' + h + ' (host/name "' + hostField(h, zone) + '" in the DNS panel for ' + zone +
+        s += x.ownRecord ? ' It already has its own record at _atproto.' + h + ', so this one is a leftover and can simply go.' :
+          ' Its own record goes at _atproto.' + h + ' (host/name "' + hostField(h, zone) + '" in the DNS panel for ' + zone +
           '), not here.';
       }
       out.push(s);
@@ -406,7 +417,9 @@
       steps = steps.concat(r.dns.pick.notes);
       steps = steps.concat(dupeSteps(r));
       (r.misplaced || []).forEach(function (m) {
-        if (m.name === r.handle) steps.push('Found a DID record on ' + m.name + ' itself. It must be on _atproto.' + r.handle +
+        if (m.name === r.handle) steps.push((r.dns.pick.all || []).length ?
+          'There is also a did= record on ' + m.name + ' itself. Bluesky never looks there, so it does nothing; you can delete it.' :
+          'Found a DID record on ' + m.name + ' itself. It must be on _atproto.' + r.handle +
           ' (in most DNS panels: host/name "_atproto", type TXT).');
         else steps.push('Found the record at ' + m.name + ': the full name was typed into a DNS panel that adds "' + m.zone +
           '" by itself. Set the host/name field to just "' + hostField(r.handle, m.zone) + '".');

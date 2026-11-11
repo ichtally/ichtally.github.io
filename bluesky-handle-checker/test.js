@@ -186,6 +186,23 @@ t("two records, one is a sibling account: keep the right one, move the other", (
   .then((r) => { assert.strictEqual(r.verdict.level, "bad"); const s = r.verdict.steps.join(" | ");
     assert.match(s, new RegExp("Keep did=" + A)); assert.match(s, new RegExp("Remove did=" + B + ".*sports\\.news\\.com"));
     assert.match(s, /host\/name "_atproto\.sports" in the DNS panel for news\.com/); }));
+// Real case 2026-11-11: the same two did= records also on the apex, and a wildcard *.news.com CNAME news.com (common on
+// WordPress hosting) made _atproto.news.com.news.com "have" them too. That is not a typed-twice record.
+t("two records + wildcard CNAME to apex: no 'typed twice' false alarm, apex copy is a harmless leftover", () => run("news.com", {
+  dns: { "_atproto.news.com": ['"did=' + A + '"', '"did=' + B + '"'], "news.com": ['"v=spf1 -all"', '"did=' + A + '"', '"did=' + B + '"'],
+    "_atproto.sports.news.com": ['"did=' + B + '"'] },
+  wildcard: { "news.com": "news.com" },
+  docs: { [A]: ["news.com"], [B]: ["sports.news.com"] } })
+  .then((r) => { const s = r.verdict.steps.join(" | ");
+    assert.ok(!/typed into a DNS panel/.test(s), s); assert.match(s, /also a did= record on news\.com itself.*does nothing/);
+    assert.match(s, /already has its own record at _atproto\.sports\.news\.com/); assert.ok(!/host\/name "_atproto\.sports"/.test(s)); }));
+t("sibling's own name only matches via the wildcard: still told where its record goes", () => run("news.com", {
+  dns: { "_atproto.news.com": ['"did=' + A + '"', '"did=' + B + '"'], "news.com": ['"did=' + B + '"'] },
+  wildcard: { "news.com": "news.com" }, docs: { [A]: ["news.com"], [B]: ["sports.news.com"] } })
+  .then((r) => assert.match(r.verdict.steps.join(" "), /host\/name "_atproto\.sports" in the DNS panel for news\.com/)));
+t("record on the apex only (none at _atproto): still told to move it", () => run("example.com", {
+  dns: { "example.com": ['"did=' + A + '"'] } })
+  .then((r) => assert.match(r.verdict.steps.join(" "), /It must be on _atproto\.example\.com/)));
 t("two records on a subdomain handle: host field is relative to the registered domain", () => run("eu.news.com", {
   dns: { "_atproto.eu.news.com": ['"did=' + A + '"', '"did=' + B + '"'] },
   docs: { [A]: ["eu.news.com"], [B]: ["fr.eu.news.com"] } })
