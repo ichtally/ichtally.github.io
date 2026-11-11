@@ -21,6 +21,10 @@ in `@atproto/identity`: `_atproto` TXT via DNS-over-HTTPS, exactly one `did=` re
 common mistakes (doubled zone name, duplicate records, missing prefix). Handle syntax matches `@atproto/syntax`
 on 30,000 random strings. `node bluesky-handle-checker/test.js` runs offline against a fake network.
 
+`bluesky-domains-closed/` is a plain explainer page (no script) for people whose handle is a domain bought through
+Bluesky's own domain service, which stopped taking registrations, transfers in and renewals in November 2026. It quotes
+the notice on account.bsky.app word for word and sticks to what is known.
+
 The 32-character `.txt` file is an [IndexNow](https://www.indexnow.org/) key. It's public by design: it only
 proves that pings about these URLs come from the site owner.
 

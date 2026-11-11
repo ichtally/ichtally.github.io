@@ -95,7 +95,9 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
 <p>Bluesky re-checks domain handles from time to time, so a handle can break long after it was set up. Run a check above, then:</p>
 <ul>
   <li><b>The check says the domain does not exist.</b> The registration has almost certainly expired (or the name
-    is misspelled). Renew it at your registrar; once it is back, check again and re-add the TXT record if it's gone.</li>
+    is misspelled). Renew it at your registrar; once it is back, check again and re-add the TXT record if it's gone.
+    Bought the domain through Bluesky itself? That service no longer takes renewals:
+    <a href="../bluesky-domains-closed/">what the closure means for your handle</a>.</li>
   <li><b>The check says the domain looks parked or for sale.</b> The domain still exists, but its nameservers now belong to a
     parking or domain-marketplace service. Usually the registration lapsed and the domain was parked or resold.
     Check whether you still own it. If you do, point the nameservers back to your DNS host and re-add the record; if not,
