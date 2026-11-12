@@ -150,10 +150,11 @@ t("hosted handle (PDS subdomain), ok: no DNS advice, re-save the name part", () 
   .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.deepStrictEqual(r.hosted, { pds: "pds.example.net", suffix: ".pds.example.net" });
     const s = r.verdict.steps.join(" ");
     assert.match(s, /hosting service, which hands out names ending in \.pds\.example\.net \(your account lives on pds\.example\.net\)/); assert.match(s, /type aurora as the new handle/);
-    assert.ok(!/well-known file only|I have my own domain|TXT/.test(s)); }));
+    assert.ok(!/well-known file only|I have my own domain|TXT/.test(s)); assert.match(s, /status\.bsky\.app/); }));
 t("own domain on a PDS that hands out other names: normal advice", () => run("bob.example.org", { wk: { "bob.example.org": A + "\n" },
   docs: { [A]: ["bob.example.org"] }, profiles: { [A]: "bob.example.org" }, hosts: { "pds.example.net": [".pds.example.net"] } })
-  .then((r) => { assert.strictEqual(r.hosted, null); assert.match(r.verdict.steps.join(" "), /I have my own domain/); }));
+  .then((r) => { assert.strictEqual(r.hosted, null); const s = r.verdict.steps.join(" ");
+    assert.match(s, /I have my own domain/); assert.match(s, /status\.bsky\.app/); }));
 t("hosted name nobody uses: says renamed/moved, not 'add a TXT record'", () => run("gone.host.example.net", {
   hosts: { "host.example.net": [".host.example.net"] } })
   .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.title, /No account uses gone\.host\.example\.net on host\.example\.net/);

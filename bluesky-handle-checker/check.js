@@ -132,6 +132,11 @@
 
   function dnsName(s) { return String(s || '').replace(/\.$/, '').toLowerCase(); }
 
+  // Shown under every "All good": a wave of Invalid Handle posts followed a Bluesky core-service migration on 2026-11-12
+  // (status.bsky.app, 00:50-01:35 UTC); every handle I checked hours later was fine again.
+  var STATUS_NOTE = 'Lots of people seeing it at the same time? Then it is likely on Bluesky\'s side. Bluesky posts outages and ' +
+    'maintenance at https://status.bsky.app; the waves I have looked at cleared within a day.';
+
   // Nameservers of domain parking / marketplace services, and GoDaddy's "expired, pending deletion" servers.
   // A domain served by these is not pointing at anyone's own DNS any more. Kept short on purpose: only names checked
   // to exist, and only services whose whole job is parked or for-sale domains.
@@ -496,6 +501,7 @@
       steps.push('Still seeing "Invalid Handle" in the app? Then it works right now; the service was probably slow or down during ' +
         'an earlier re-check. To force a fresh check: Settings, Account, Handle, type ' + sub + ' as the new handle (the ' +
         r.hosted.suffix + ' part is added for you), then Save. If it keeps happening, tell your hosting service.');
+      steps.push(STATUS_NOTE);
       return { level: 'ok', title: 'All good: ' + r.handle + ' is a working Bluesky handle', steps: steps };
     }
     if (r.profile && r.profile.handle === r.handle) {
@@ -505,6 +511,7 @@
       steps.push('Still seeing "Invalid Handle" in the app? Then the setup is fine right now and an earlier check failed. ' +
         'To force a fresh check: Settings, Account, Handle, "I have my own domain", enter ' + r.handle + ', verify, then "Update to ' +
         r.handle + '".');
+      steps.push(STATUS_NOTE);
       return { level: 'ok', title: 'All good: ' + r.handle + ' is a working Bluesky handle', steps: steps };
     }
     var shown = r.profile ? r.profile.handle : '(profile not found)';
