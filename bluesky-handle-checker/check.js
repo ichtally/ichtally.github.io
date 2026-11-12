@@ -285,7 +285,9 @@
       // account (e.g. a sports or language desk) added that account's record at the main name.
       var dupesP = Promise.resolve(null);
       var all = (rep.dns.pick.all || []).filter(isValidDid);
-      if (all.length > 1) {
+      var malformed = (rep.dns.pick.all || []).length - all.length;
+      // One good record next to a mistyped one: still look the good one up, to say whether to keep it.
+      if (all.length > 1 || (all.length === 1 && malformed > 0)) {
         dupesP = Promise.all(all.map(function (did) {
           var url = didDocUrl(did);
           return Promise.all([
@@ -345,19 +347,47 @@
   }
 
   // Which of several did= records to keep, and where the others belong.
+  // Number of positions where two equal-length strings differ (Infinity if lengths differ).
+  function charDiff(a, b) {
+    if (a.length !== b.length) return Infinity;
+    var n = 0;
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) n++;
+    return n;
+  }
+
   function dupeSteps(r) {
     var d = r.dupes || [];
-    if (d.length < 2) return [];
+    var out = [];
+    var good = (r.dns && r.dns.pick && r.dns.pick.all || []).filter(isValidDid);
+    (r.dns && r.dns.pick && r.dns.pick.all || []).forEach(function (x) {
+      if (isValidDid(x)) return;
+      var near = good.filter(function (g) { return charDiff(g, x) <= 2; });
+      out.push('Delete did=' + x + ': that is not a valid DID, so it can never match an account' +
+        (near.length === 1 ? ' (it looks like a mistyped copy of did=' + near[0] + ').' : '.'));
+    });
+    if (d.length === 1) {
+      var one = d[0];
+      if (one.aka && one.aka.indexOf(r.handle) >= 0) {
+        out.push('Keep did=' + one.did + ': that account' + (one.displayName ? ' ("' + one.displayName + '")' : '') +
+          ' claims ' + r.handle + ' as its handle. Once it is the only did= record, re-verify the handle in the app.');
+      } else {
+        out.push('The other record, did=' + one.did + ', ' + (one.aka ? 'claims ' + (one.aka.join(', ') || 'no handle') +
+          ', not ' + r.handle + '. Make sure it is the DID of the account that should have this handle.' :
+          'could not be looked up. Make sure it is the DID of the account that should have this handle.'));
+      }
+      return out;
+    }
+    if (d.length < 2) return out;
     var keep = d.filter(function (x) { return x.aka && x.aka.indexOf(r.handle) >= 0; });
     var who = function (x) { return x.did + (x.displayName ? ' ("' + x.displayName + '")' : ''); };
     if (keep.length !== 1) {
-      return d.map(function (x) {
+      return out.concat(d.map(function (x) {
         return 'did=' + who(x) + ': ' + (x.aka ? 'claims ' + (x.aka.join(', ') || 'no handle') + '.' : 'could not load its DID document.');
-      }).concat(['None of them (or more than one) claims ' + r.handle + ', so the record list alone can not say which to keep. ' +
+      }), ['None of them (or more than one) claims ' + r.handle + ', so the record list alone can not say which to keep. ' +
         'Keep the DID of the account that should have this handle.']);
     }
-    var out = ['Keep did=' + keep[0].did + ': that account' + (keep[0].displayName ? ' ("' + keep[0].displayName + '")' : '') +
-      ' is the one that claims ' + r.handle + ' as its handle.'];
+    out.push('Keep did=' + keep[0].did + ': that account' + (keep[0].displayName ? ' ("' + keep[0].displayName + '")' : '') +
+      ' is the one that claims ' + r.handle + ' as its handle.');
     d.forEach(function (x) {
       if (x === keep[0]) return;
       var h = x.aka && x.aka[0];

@@ -211,6 +211,18 @@ t("two records on a subdomain handle: host field is relative to the registered d
 t("two records, neither claims the handle: no guess", () => run("news.com", {
   dns: { "_atproto.news.com": ['"did=' + A + '"', '"did=' + B + '"'] }, docs: { [A]: ["a.bsky.social"], [B]: ["b.bsky.social"] } })
   .then((r) => { const s = r.verdict.steps.join(" "); assert.ok(!/Keep did=/.test(s)); assert.match(s, /can not say which to keep/); }));
+// Real case 2026-11-12: the right record plus a mistyped copy ("did:plcL…", L where ":" should be).
+t("good record + mistyped copy: delete the typo, keep the real one", () => {
+  const typo = A.replace("did:plc:", "did:plcL");
+  return run("news.com", { dns: { "_atproto.news.com": ['"did=' + A + '"', '"did=' + typo + '"'] }, docs: { [A]: ["news.com"] } })
+    .then((r) => { const s = r.verdict.steps.join(" | ");
+      assert.match(s, new RegExp("Delete did=" + typo + ".*mistyped copy of did=" + A));
+      assert.match(s, new RegExp("Keep did=" + A + ".*claims news\\.com")); });
+});
+t("good record + broken one, good one claims something else: no 'keep'", () => run("news.com", {
+  dns: { "_atproto.news.com": ['"did=' + A + '"', '"did=nonsense"'] }, docs: { [A]: ["other.bsky.social"] } })
+  .then((r) => { const s = r.verdict.steps.join(" | "); assert.match(s, /Delete did=nonsense: that is not a valid DID\.$|Delete did=nonsense: that is not a valid DID, so it can never match an account\./);
+    assert.ok(!/Keep did=/.test(s), s); assert.match(s, /claims other\.bsky\.social, not news\.com/); }));
 t("two identical records: no per-DID lookup", () => run("news.com", {
   dns: { "_atproto.news.com": ['"did=' + A + '"', '"did=' + A + '"'] }, docs: { [A]: ["news.com"] } })
   .then((r) => { assert.strictEqual(r.dupes, null); assert.match(r.verdict.steps.join(" "), /identical/); }));
