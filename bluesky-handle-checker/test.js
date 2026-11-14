@@ -238,7 +238,15 @@ t("expected given as a DID", () => run("example.com", {
   .then((r) => assert.strictEqual(r.verdict.level, "ok")));
 t("DNS done, handle not switched yet", () => run("example.com", {
   dns: { "_atproto.example.com": ['"did=' + A + '"'] }, docs: { [A]: ["me.bsky.social"] }, profiles: { [A]: "me.bsky.social" } })
-  .then((r) => { assert.strictEqual(r.verdict.level, "wait"); assert.match(r.verdict.title, /Half done/); }));
+  .then((r) => { assert.strictEqual(r.verdict.level, "wait"); assert.match(r.verdict.title, /Half done/);
+    assert.ok(!/bot check/.test(r.verdict.steps.join(" "))); }));
+// Real case 2026-11-13: an itch.io subdomain handle; the browser reads .well-known, but the user's PDS got a Cloudflare challenge.
+t("well-known only, not switched yet: warns that the server (not the browser) fetches it", () => run("me.games.example.org", {
+  wk: { "me.games.example.org": A }, docs: { [A]: ["me.bsky.social"] }, profiles: { [A]: "me.bsky.social" } })
+  .then((r) => { assert.strictEqual(r.verdict.level, "wait"); assert.strictEqual(r.didSource, "http");
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /your account's server \(pds\.example\.net\) that fetches it/); assert.match(s, /bot check/);
+    assert.match(s, new RegExp('host/name "_atproto\\.me\\.games", value did=' + A)); }));
 t("records right, Bluesky still shows handle.invalid", () => run("example.com", {
   dns: { "_atproto.example.com": ['"did=' + A + '"'] }, docs: { [A]: ["example.com"] }, profiles: { [A]: "handle.invalid" } })
   .then((r) => { assert.strictEqual(r.verdict.level, "wait"); assert.match(r.verdict.title, /handle\.invalid/); }));

@@ -499,9 +499,17 @@
       return { level: 'wait', title: r.handle + ' points to ' + r.did, steps: steps.concat(['Could not load the DID document to finish the check.']) };
     }
     if (!claimed) {
+      var half = ['The account currently claims: ' + ((r.aka || []).join(', ') || 'no handle') + '.',
+        'Finish in the Bluesky app: change your handle, choose the option for your own domain, enter ' + r.handle + ' and verify.'];
+      // Real case 2026-11-13: a PDS could not verify an itch.io subdomain handle because the site answered the PDS's server
+      // request with a Cloudflare bot challenge. A browser gets the file fine, so this page can not see that block.
+      if (r.didSource === 'http') half.push('Your browser could read https://' + r.handle + '/.well-known/atproto-did, but when you ' +
+        'verify, it is your account\'s server' + (r.pds ? ' (' + hostName(r.pds) + ')' : '') + ' that fetches it, not your browser. ' +
+        'If the app says it can not verify, the website may be blocking server requests (for example a Cloudflare bot check). ' +
+        'Ask whoever runs the site to let /.well-known/atproto-did through, or, if you control the domain\'s DNS, add a TXT record ' +
+        'instead: host/name "' + hostField(r.handle, r.handle.split('.').slice(-2).join('.')) + '", value did=' + r.did + '.');
       return { level: 'wait', title: 'Half done: the domain points to the account, but the account has not switched to it',
-        steps: steps.concat(['The account currently claims: ' + ((r.aka || []).join(', ') || 'no handle') + '.',
-          'Finish in the Bluesky app: change your handle, choose the option for your own domain, enter ' + r.handle + ' and verify.']) };
+        steps: steps.concat(half) };
     }
     // The records are fine, but the account they point to is suspended or switched off. Typical symptom: an OLDER account that
     // used to have this handle shows "Invalid Handle", because the domain now points to this one.
