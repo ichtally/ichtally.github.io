@@ -29,3 +29,8 @@ The 32-character `.txt` file is an [IndexNow](https://www.indexnow.org/) key. It
 proves that pings about these URLs come from the site owner.
 
 Live: https://ichtally.github.io/
+
+- Character counter: https://ichtally.github.io/bluesky-character-counter/
+- Thread splitter: https://ichtally.github.io/bluesky-thread-splitter/
+- Handle checker: https://ichtally.github.io/bluesky-handle-checker/
+- Bluesky domain service closed: https://ichtally.github.io/bluesky-domains-closed/
