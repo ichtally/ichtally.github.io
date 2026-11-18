@@ -59,14 +59,14 @@
   var SERVICE_DOMAIN = '.bsky.social';
   function serviceNameNote(h) {
     if (!h || !h.endsWith(SERVICE_DOMAIN) || h === SERVICE_DOMAIN.slice(1)) return null;
-    var front = h.slice(0, -SERVICE_DOMAIN.length), why = null;
-    if (front.indexOf('.') !== -1) why = 'it has a dot in it ("' + front + '")';
-    else if (front.length < 3) why = '"' + front + '" is only ' + front.length + ' character' + (front.length === 1 ? '' : 's');
-    else if (front.length > 18) why = '"' + front + '" is ' + front.length + ' characters';
+    var front = h.slice(0, -SERVICE_DOMAIN.length), why = null, fix = null;
+    if (front.indexOf('.') !== -1) { why = 'it has a dot in it ("' + front + '")'; fix = 'Use a hyphen instead of the dot'; }
+    else if (front.length < 3) { why = '"' + front + '" is only ' + front.length + ' character' + (front.length === 1 ? '' : 's'); fix = 'Pick a longer name'; }
+    else if (front.length > 18) { why = '"' + front + '" is ' + front.length + ' characters'; fix = 'Shorten it'; }
     if (!why) return null;
     return 'If you are trying to pick this as a new handle: Bluesky\'s server only accepts 3 to 18 characters before .bsky.social, ' +
       'with no dots, and ' + why + '. That alone gives "Invalid Handle" at sign-up or when changing handles. ' +
-      'Shorten it, use a hyphen instead of a dot, or use your own domain (no length limit).';
+      fix + ', or use your own domain (no length limit).';
   }
 
   // DoH JSON "data" for TXT. Cloudflare: "\"did=...\"" (quoted chunks, maybe several: "a" "b").
