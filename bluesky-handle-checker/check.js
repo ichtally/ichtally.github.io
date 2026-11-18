@@ -30,7 +30,12 @@
 
   // Same checks and order as ensureValidHandle, plus the registration-time TLD block list.
   function validateHandle(h) {
-    if (!/^[a-zA-Z0-9.-]*$/.test(h)) return 'Only ASCII letters, digits, dashes and dots are allowed in a handle.';
+    var bad = /[^a-zA-Z0-9.-]/.exec(h);
+    if (bad) {
+      if (bad[0] === '_') return 'Underscores (_) are not allowed in Bluesky handles (unlike X/Twitter). Use a hyphen instead, like my-name.bsky.social.';
+      if (/\s/.test(bad[0])) return 'Spaces are not allowed in a handle. Use a hyphen instead, like my-name.bsky.social.';
+      return 'Only ASCII letters, digits, dashes and dots are allowed in a handle ("' + bad[0] + '" is not).';
+    }
     if (h.length > 253) return 'Too long (253 characters max).';
     var labels = h.split('.');
     if (labels.length < 2) return 'A handle needs at least two parts, like example.com.';
@@ -45,6 +50,23 @@
       if (h.endsWith(DISALLOWED_TLDS[j])) return DISALLOWED_TLDS[j] + ' domains can not be used as Bluesky handles.';
     }
     return null;
+  }
+
+  // Extra rule Bluesky's own PDS applies when a *.bsky.social name is created or changed
+  // (packages/pds/src/handle/index.ts ensureHandleServiceConstraints): the part before
+  // .bsky.social has no dots and is 3-18 characters. A note, not an error: it doesn't
+  // decide whether an existing handle resolves, so the live checks still run.
+  var SERVICE_DOMAIN = '.bsky.social';
+  function serviceNameNote(h) {
+    if (!h || !h.endsWith(SERVICE_DOMAIN) || h === SERVICE_DOMAIN.slice(1)) return null;
+    var front = h.slice(0, -SERVICE_DOMAIN.length), why = null;
+    if (front.indexOf('.') !== -1) why = 'it has a dot in it ("' + front + '")';
+    else if (front.length < 3) why = '"' + front + '" is only ' + front.length + ' character' + (front.length === 1 ? '' : 's');
+    else if (front.length > 18) why = '"' + front + '" is ' + front.length + ' characters';
+    if (!why) return null;
+    return 'If you are trying to pick this as a new handle: Bluesky\'s server only accepts 3 to 18 characters before .bsky.social, ' +
+      'with no dots, and ' + why + '. That alone gives "Invalid Handle" at sign-up or when changing handles. ' +
+      'Shorten it, use a hyphen instead of a dot, or use your own domain (no length limit).';
   }
 
   // DoH JSON "data" for TXT. Cloudflare: "\"did=...\"" (quoted chunks, maybe several: "a" "b").
@@ -213,6 +235,8 @@
     var h = n.handle;
     var rep = { handle: h, inputNotes: n.notes, syntaxError: validateHandle(h) };
     if (!h) { rep.syntaxError = 'Type a handle, like alice.example.com.'; }
+    var svc = serviceNameNote(h);
+    if (!rep.syntaxError && svc) rep.inputNotes = rep.inputNotes.concat([svc]);
     if (rep.syntaxError) { rep.verdict = verdict(rep); return Promise.resolve(rep); }
 
     // Common mistake: full name typed into a panel that appends the zone -> _atproto.<h>.<zone>.
@@ -559,7 +583,7 @@
         'Both directions check out. Bluesky\'s view updates shortly after a handle change.']) };
   }
 
-  var api = { normalizeInput: normalizeInput, validateHandle: validateHandle, parseTxtData: parseTxtData, pickDid: pickDid,
+  var api = { normalizeInput: normalizeInput, validateHandle: validateHandle, serviceNameNote: serviceNameNote, parseTxtData: parseTxtData, pickDid: pickDid,
     parseWellKnown: parseWellKnown, hostField: hostField, akaHandles: akaHandles, pdsOf: pdsOf, didDocUrl: didDocUrl, isValidDid: isValidDid,
     hostedSuffix: hostedSuffix, check: check, verdict: verdict };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.HandleCheck = api;

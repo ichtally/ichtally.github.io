@@ -315,5 +315,23 @@ t("bad syntax stops early", () => run("me.local", {}).then((r) => {
   assert.strictEqual(r.verdict.level, "bad"); assert.strictEqual(r.dns, undefined);
 }));
 t("empty input", () => run("  ", {}).then((r) => assert.strictEqual(r.verdict.level, "bad")));
+t("underscore / space get named", () => {
+  assert.match(H.validateHandle("my_brand.bsky.social"), /Underscores/);
+  assert.match(H.validateHandle("my brand.bsky.social"), /Spaces/);
+  assert.match(H.validateHandle("a&b.com"), /"&" is not/);
+});
+t("bsky.social 3-18 rule is a note, not an error", () => {
+  assert.strictEqual(H.serviceNameNote("alice.bsky.social"), null);
+  assert.strictEqual(H.serviceNameNote("abc.bsky.social"), null);            // 3 ok
+  assert.strictEqual(H.serviceNameNote("a".repeat(18) + ".bsky.social"), null); // 18 ok
+  assert.match(H.serviceNameNote("jo.bsky.social"), /only 2 characters/);
+  assert.match(H.serviceNameNote("a".repeat(19) + ".bsky.social"), /19 characters/);
+  assert.match(H.serviceNameNote("my.name.bsky.social"), /dot/);
+  assert.strictEqual(H.serviceNameNote("bsky.social"), null);
+  assert.strictEqual(H.serviceNameNote("jo.example.com"), null);
+});
+t("short bsky.social name still runs the live checks", () => run("jo.bsky.social", {}).then((r) => {
+  assert.ok(r.dns !== undefined); assert.ok(r.inputNotes.some((s) => /3 to 18/.test(s)));
+}));
 
 Promise.all(pending).then(() => console.log("\n" + n + " tests passed"), (e) => { console.error(e); process.exit(1); });

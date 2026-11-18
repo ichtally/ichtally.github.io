@@ -138,6 +138,13 @@ looking up the handle to find your server, and that is the step an invalid handl
 your hosting server (for most people <code>bsky.social</code>), enter that and use your email on the next screen.
 Once you are in, fix the handle with the check above, or pick a new one in Settings → Account → Handle.</p>
 
+<h3>"Invalid Handle" when signing up or picking a new name</h3>
+<p>That is a name rule, not DNS. Handles use only letters, digits and hyphens between the dots: <b>no underscores</b> (unlike X/Twitter),
+no spaces, no symbols like &amp; or '. Capitals are fine (they are lowercased). On Bluesky's own server the part before
+<code>.bsky.social</code> must be <b>3 to 18 characters</b> with no extra dots (from <code>ensureHandleServiceConstraints</code> in the PDS code).
+So <code>my_brand.bsky.social</code> and <code>jo.bsky.social</code> are refused, <code>my-brand.bsky.social</code> is fine.
+Your own domain has no 18-character limit. The check above names the rule you hit.</p>
+
 <h3>Where do I find my DID?</h3>
 <p>Put your current handle (for example <code>you.bsky.social</code>) in the second box above and run a check: the table shows the
 exact TXT value to use. The Bluesky app also shows it while you change your handle to a domain.</p>
