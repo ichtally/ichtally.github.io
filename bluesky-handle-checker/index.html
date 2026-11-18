@@ -129,6 +129,15 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
     takes over the handle and the old one, with the followers, shows "Invalid Handle".</li>
 </ul>
 
+<h3>Can I still log in with an "Invalid Handle"?</h3>
+<p>Yes. Your account, posts and followers belong to your DID, not to the handle, so nothing is lost. If signing in with the
+handle doesn't work, type your account's <b>email address</b> in the username box instead (your DID works too). The hosting server's
+password login looks up an email or DID in its own account list, so it doesn't depend on the handle resolving
+(that's how <code>login()</code> in the PDS code works). Other apps and sites that offer "Sign in with Bluesky" usually start by
+looking up the handle to find your server, and that is the step an invalid handle breaks. If such a sign-in box also accepts
+your hosting server (for most people <code>bsky.social</code>), enter that and use your email on the next screen.
+Once you are in, fix the handle with the check above, or pick a new one in Settings → Account → Handle.</p>
+
 <h3>Where do I find my DID?</h3>
 <p>Put your current handle (for example <code>you.bsky.social</code>) in the second box above and run a check: the table shows the
 exact TXT value to use. The Bluesky app also shows it while you change your handle to a domain.</p>
