@@ -272,7 +272,11 @@ t("profile simply missing: still the old 'wait' verdict", () => run("example.com
 t("domain does not exist (expired): says renew, not 'add a record'", () => run("alice.gone-domain.net", { nx: ["gone-domain.net"] })
   .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.title, /gone-domain\.net does not exist/);
     const s = r.verdict.steps.join(" ");
-    assert.match(s, /expired/); assert.match(s, /host\/name "_atproto\.alice"/); assert.ok(!/No TXT record found/.test(s)); }));
+    assert.match(s, /expired/); assert.match(s, /host\/name "_atproto\.alice"/); assert.ok(!/No TXT record found/.test(s));
+    assert.match(s, /If gone-domain\.net is not your own domain/); assert.match(s, /Settings, Account, Handle/); }));
+// Real case 2026-11-19: lloolly.sysky.club, a name under a shared domain that went NXDOMAIN. Apex handles get no "not yours" step.
+t("expired domain, handle IS the domain: no 'not your own domain' step", () => run("gone-domain.net", { nx: ["gone-domain.net"] })
+  .then((r) => { assert.match(r.verdict.title, /does not exist/); assert.ok(!/not your own domain/.test(r.verdict.steps.join(" "))); }));
 t("domain exists, no record: no expiry hint", () => run("nobody.example.com", {})
   .then((r) => { assert.ok(!/expired|does not exist/.test(r.verdict.title + r.verdict.steps.join(" "))); }));
 t("co.uk-style name: apex guess exists, falls back to the normal advice", () => run("me.co.uk", { nx: ["me.co.uk"] })
@@ -285,10 +289,12 @@ t("parked domain: says parked/expired, not 'add a record'", () => run("asunder.n
   ns: { "asunder.net": ["ns1.lander.d.parity.domains", "ns2.lander.d.parity.domains"] } })
   .then((r) => { assert.match(r.verdict.title, /asunder\.net looks parked/);
     const s = r.verdict.steps.join(" ");
-    assert.match(s, /Parity/); assert.match(s, /host\/name "_atproto"/); assert.ok(!/No TXT record found/.test(s)); }));
+    assert.match(s, /Parity/); assert.match(s, /host\/name "_atproto"/); assert.ok(!/No TXT record found/.test(s));
+    assert.ok(!/not your own domain/.test(s)); }));
 t("GoDaddy pending-deletion nameservers count as parked", () => run("me.old-site.com", {
   ns: { "old-site.com": ["NS1.PENDINGRENEWALDELETION.COM", "ns2.pendingrenewaldeletion.com"] } })
-  .then((r) => { assert.match(r.verdict.title, /old-site\.com looks parked/); assert.match(r.verdict.steps[1], /"_atproto\.me"/); }));
+  .then((r) => { assert.match(r.verdict.title, /old-site\.com looks parked/); assert.match(r.verdict.steps[1], /"_atproto\.me"/);
+    assert.match(r.verdict.steps.join(" "), /If old-site\.com is not your own domain/); }));
 t("normal nameservers: normal advice, and lookalike names don't match", () => run("me.example.com", {
   ns: { "example.com": ["ns1.notdan.com", "a.iana-servers.net"] } })
   .then((r) => { assert.ok(!/parked/.test(r.verdict.title)); assert.match(r.verdict.steps.join(" "), /No TXT record found/); }));

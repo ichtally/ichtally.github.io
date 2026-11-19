@@ -428,6 +428,15 @@
     return out;
   }
 
+  // Handle is a name UNDER a lapsed domain: the user may only have been given that name (shared/free subdomain service,
+  // a friend's or a community's domain). Then renewing is not theirs to do. Real case 2026-11-19: *.sysky.club went NXDOMAIN.
+  function notYoursStep(r) {
+    if (r.handle === r.apex.name) return [];
+    return ['If ' + r.apex.name + ' is not your own domain (a friend, a community, or a shared handle service gave you this name), ' +
+      'only its owner can renew it, so ask them. Until then you can pick another handle in the app (Settings, Account, Handle); ' +
+      'your posts and followers stay, they belong to your account (DID), not the name. You can usually still log in with your email (see the FAQ below).'];
+  }
+
   // level: ok | wait | bad. steps: what to do next.
   function verdict(r) {
     if (r.syntaxError) return { level: 'bad', title: 'Not a valid handle', steps: [r.syntaxError] };
@@ -440,7 +449,8 @@
             'Check the spelling first. If it is right, the registration has most likely expired: check it at your registrar ' +
             '(or with a WHOIS lookup) and renew it.',
           'After renewing, it can take a few hours for the domain to come back. If the _atproto TXT record is gone, add it again: ' +
-            'host/name "' + hostField(r.handle, r.apex.name) + '", value "did=" followed by your DID. Then re-verify the handle in the app.']) };
+            'host/name "' + hostField(r.handle, r.apex.name) + '", value "did=" followed by your DID. Then re-verify the handle in the app.'],
+            notYoursStep(r)) };
       }
       if (r.apex && r.apex.parked) {
         return { level: 'bad', title: 'The domain ' + r.apex.name + ' looks parked, for sale, or expired',
@@ -451,7 +461,7 @@
             'set its nameservers back to your DNS provider, and re-add the TXT record: host/name "' + hostField(r.handle, r.apex.name) +
             '", value "did=" followed by your DID. Then re-verify the handle in the app.',
           'If someone else owns it now, the handle can not come back; pick a new one in the app (your posts and followers stay, they ' +
-            'belong to your DID, not the handle).']) };
+            'belong to your DID, not the handle).'], notYoursStep(r)) };
       }
       if (r.parentHost && !r.dns.pick.notes.length && !(r.misplaced || []).length) {
         var ph = r.parentHost;
