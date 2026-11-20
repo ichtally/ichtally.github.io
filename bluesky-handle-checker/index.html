@@ -129,6 +129,15 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
     takes over the handle and the old one, with the followers, shows "Invalid Handle".</li>
 </ul>
 
+<h3>Someone else's account shows "Invalid Handle"</h3>
+<p>Their handle (usually a domain) and their account no longer agree, so the app shows "Invalid Handle" instead of the name.
+It is still the same account: its posts and followers stay, your follow stays, and they can keep posting. In the cases I've
+looked at, the cause was on their domain (it expired, or a DNS record changed or got duplicated), not a hack. Put their handle in
+the box above to see the likely cause; every lookup it makes is public.<br>
+Want to tell them? <b>An @mention won't reach them.</b> The app only turns <code>@name</code> into a mention when the name
+resolves to an account, so <code>@their.domain</code> is posted as plain text and they get no notification (seen on a real post,
+20 November 2026). Reply to one of their posts or quote it instead.</p>
+
 <h3>Can I still log in with an "Invalid Handle"?</h3>
 <p>Yes. Your account, posts and followers belong to your DID, not to the handle, so nothing is lost. If signing in with the
 handle doesn't work, type your account's <b>email address</b> in the username box instead (your DID works too). The hosting server's
