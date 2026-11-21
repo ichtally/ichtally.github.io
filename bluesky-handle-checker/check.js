@@ -433,7 +433,8 @@
   function notYoursStep(r) {
     if (r.handle === r.apex.name) return [];
     return ['If ' + r.apex.name + ' is not your own domain (a friend, a community, or a shared handle service gave you this name), ' +
-      'only its owner can renew it, so ask them. Until then you can pick another handle in the app (Settings, Account, Handle); ' +
+      'only its owner can renew it, so ask them. Until then you can pick another handle in the app (Settings, Account, Handle; ' +
+      'for most people a free .bsky.social name, see the FAQ below); ' +
       'your posts and followers stay, they belong to your account (DID), not the name. You can usually still log in with your email (see the FAQ below).'];
   }
 
@@ -514,7 +515,8 @@
         // Real case 2026-11-21: a community domain (live, own DNS) no longer had the member's _atproto record ("kicked out").
         if (!r.dns.txt.length && r.handle.split('.').length > 2) steps.push('If ' + zone2 + ' is not your own domain (a friend, ' +
           'a community, or a shared handle service gave you this name), you can not add this record yourself: its owner manages it, and ' +
-          'it may have been removed. Ask them, or pick another handle in the app (Settings, Account, Handle); your posts and followers ' +
+          'it may have been removed. Ask them, or pick another handle in the app (Settings, Account, Handle; for most people a free ' +
+          '.bsky.social name, see the FAQ below); your posts and followers ' +
           'stay, they belong to your account (DID), not the name. You can usually still log in with your email (see the FAQ below).');
         if (r.http.reached) steps.push('/.well-known/atproto-did: ' + r.http.note);
       }

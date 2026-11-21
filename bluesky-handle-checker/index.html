@@ -147,6 +147,16 @@ looking up the handle to find your server, and that is the step an invalid handl
 your hosting server (for most people <code>bsky.social</code>), enter that and use your email on the next screen.
 Once you are in, fix the handle with the check above, or pick a new one in Settings → Account → Handle.</p>
 
+<h3>Can I go back to a .bsky.social handle?</h3>
+<p>Yes, any time, and you keep your posts, followers and follows (they belong to your DID, which doesn't change). In the app:
+Settings → Account → Handle. The first screen is the "New handle" box, already ending in your hosting server's name
+(<code>.bsky.social</code> for most people): type a name and press Save. Don't press "I have my own domain"; that is the other way round.
+The usual name rules apply (3 to 18 characters, no underscores). If your old name has been taken since, the app says
+"Handle already taken", so pick another. If your account has a blue verified check, the app warns that changing the handle removes it.
+This is also the quick way out when the domain isn't yours to fix: in a real case on 21 November 2026, someone whose
+handle under a community's domain stopped working switched to a <code>.bsky.social</code> name, and the same account (same DID)
+was back to a working handle. You can switch to a domain again later.</p>
+
 <h3>"Invalid Handle" when signing up or picking a new name</h3>
 <p>That is a name rule, not DNS. Handles use only letters, digits and hyphens between the dots: <b>no underscores</b> (unlike X/Twitter),
 no spaces, no symbols like &amp; or '. Capitals are fine (they are lowercased). On Bluesky's own server the part before
