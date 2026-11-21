@@ -279,8 +279,33 @@ t("expired domain, handle IS the domain: no 'not your own domain' step", () => r
   .then((r) => { assert.match(r.verdict.title, /does not exist/); assert.ok(!/not your own domain/.test(r.verdict.steps.join(" "))); }));
 t("domain exists, no record: no expiry hint", () => run("nobody.example.com", {})
   .then((r) => { assert.ok(!/expired|does not exist/.test(r.verdict.title + r.verdict.steps.join(" "))); }));
-t("co.uk-style name: apex guess exists, falls back to the normal advice", () => run("me.co.uk", { nx: ["me.co.uk"] })
-  .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.ok(!/expired/.test(r.verdict.steps.join(" "))); }));
+// 2026-11-21: registered domain from the Public Suffix List, so co.uk / com.br / co.jp names are domains of their own.
+t("regDomain knows two-label country suffixes", () => {
+  assert.strictEqual(H.regDomain("alice.example.com"), "example.com");
+  assert.strictEqual(H.regDomain("example.com"), "example.com");
+  assert.strictEqual(H.regDomain("maria.com.br"), "maria.com.br");
+  assert.strictEqual(H.regDomain("alice.maria.com.br"), "maria.com.br");
+  assert.strictEqual(H.regDomain("shop.co.uk"), "shop.co.uk");
+  assert.strictEqual(H.regDomain("a.b.example.co.jp"), "example.co.jp");
+  assert.strictEqual(H.regDomain("me.example.com.au"), "example.com.au");
+  assert.strictEqual(H.regDomain("alice.bsky.social"), "bsky.social");
+  assert.strictEqual(H.regDomain("alice.github.io"), "github.io");  // private-section suffixes are left out on purpose
+});
+t("expired co.uk domain: names the domain itself, not co.uk", () => run("me.co.uk", { nx: ["me.co.uk"] })
+  .then((r) => { assert.match(r.verdict.title, /me\.co\.uk does not exist/);
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /host\/name "_atproto"/); assert.ok(!/not your own domain/.test(s)); }));
+t("com.br domain, no record: host/name _atproto, no 'not your own domain' step", () => run("maria.com.br", {})
+  .then((r) => { const s = r.verdict.steps.join(" ");
+    assert.match(s, /No TXT record found/); assert.match(s, /host\/name "_atproto",/);
+    assert.ok(!/com\.br is not your own|panel is com\.br/.test(s)); assert.ok(!/not your own domain/.test(s)); }));
+t("name under a com.br domain: zone is the domain, not com.br", () => run("blog.maria.com.br", {})
+  .then((r) => { const s = r.verdict.steps.join(" ");
+    assert.match(s, /host\/name "_atproto\.blog" \(if the domain in your DNS panel is maria\.com\.br\)/);
+    assert.match(s, /If maria\.com\.br is not your own domain/); }));
+t("record typed with the full name into a co.uk panel is found", () => run("shop.co.uk", {
+  dns: { "_atproto.shop.co.uk.shop.co.uk": ['"did=' + A + '"'] } })
+  .then((r) => { assert.strictEqual(r.misplaced.length, 1); assert.match(r.verdict.steps.join(" "), /host\/name field to just "_atproto"/); }));
 t("expired domain but Bluesky still resolves it from cache: no expiry verdict", () => run("old-domain.net", { nx: ["old-domain.net"],
   resolve: { "old-domain.net": A } })
   .then((r) => { assert.strictEqual(r.didSource, "appview"); assert.ok(!/does not exist/.test(r.verdict.title)); }));
