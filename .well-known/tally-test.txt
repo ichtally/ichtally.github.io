@@ -1,0 +1,1 @@
+test: does the default GitHub Pages (Jekyll) build serve a .well-known folder? Temporary, will be removed.
