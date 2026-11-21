@@ -511,6 +511,11 @@
           hostField(r.handle, r.handle.split('.').slice(-2).join('.')) + '"' +
           (r.handle.split('.').length > 2 ? ' (if the domain in your DNS panel is ' + r.handle.split('.').slice(-2).join('.') + ')' : '') +
           ', value "did=" followed by your DID. DNS changes can take a few minutes to an hour to show up.');
+        // Real case 2026-11-21: a community domain (live, own DNS) no longer had the member's _atproto record ("kicked out").
+        if (!r.dns.txt.length && r.handle.split('.').length > 2) steps.push('If ' + zone2 + ' is not your own domain (a friend, ' +
+          'a community, or a shared handle service gave you this name), you can not add this record yourself: its owner manages it, and ' +
+          'it may have been removed. Ask them, or pick another handle in the app (Settings, Account, Handle); your posts and followers ' +
+          'stay, they belong to your account (DID), not the name. You can usually still log in with your email (see the FAQ below).');
         if (r.http.reached) steps.push('/.well-known/atproto-did: ' + r.http.note);
       }
       return { level: 'bad', title: 'Bluesky can not find an account for ' + r.handle, steps: steps };

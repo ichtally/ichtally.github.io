@@ -298,6 +298,13 @@ t("GoDaddy pending-deletion nameservers count as parked", () => run("me.old-site
 t("normal nameservers: normal advice, and lookalike names don't match", () => run("me.example.com", {
   ns: { "example.com": ["ns1.notdan.com", "a.iana-servers.net"] } })
   .then((r) => { assert.ok(!/parked/.test(r.verdict.title)); assert.match(r.verdict.steps.join(" "), /No TXT record found/); }));
+// Real case 2026-11-21: name under a live community domain, member's _atproto record gone.
+t("no record on a subdomain of a live domain: says the owner manages it", () => run("me.example.com", {})
+  .then((r) => { const s = r.verdict.steps.join(" ");
+    assert.match(s, /No TXT record found/); assert.match(s, /If example\.com is not your own domain/); assert.match(s, /may have been removed/); }));
+t("no record on an apex domain: no 'not your own domain' step", () => run("example.com", {})
+  .then((r) => { const s = r.verdict.steps.join(" ");
+    assert.match(s, /No TXT record found/); assert.ok(!/not your own domain/.test(s)); }));
 t("parked domain but the handle still resolves: no parked verdict", () => run("cached.net", {
   ns: { "cached.net": ["ns1.sedoparking.com"] }, resolve: { "cached.net": A } })
   .then((r) => { assert.ok(!/parked/.test(r.verdict.title)); }));
