@@ -80,8 +80,11 @@ mesmas consultas que o Bluesky e diz o que corrigir, incluindo o valor exato do 
 <p><b>Nome no GitHub Pages, Neocities, Netlify…</b> (por exemplo <code>voce.github.io</code> ou <code>voce.neocities.org</code>): quem
 cuida do DNS é o serviço, então não há registro TXT para criar. Use o arquivo: no app, em Configurações → Conta → Nome de usuário →
 "Eu tenho meu próprio domínio", aba <b>"Não tenho painel de DNS"</b>. No site, crie a pasta <code>.well-known</code> na raiz e dentro dela
-um arquivo de texto <code>atproto-did</code> (sem extensão) contendo só o seu DID. No GitHub Pages, crie também um arquivo vazio
-<code>.nojekyll</code> na raiz do repositório; sem ele a pasta <code>.well-known</code> não é publicada (testei neste site em 21/11/2026).</p>
+um arquivo de texto <code>atproto-did</code> (sem extensão) contendo só o seu DID. No GitHub Pages, a publicação padrão (Jekyll) deixa de
+fora pastas que começam com ponto, então a pasta <code>.well-known</code> não aparece no site (404). Solução: coloque a linha
+<code>include: [".well-known"]</code> no arquivo <code>_config.yml</code> na raiz do repositório (crie o arquivo se não existir); funciona
+com ou sem tema Jekyll. Um site só em HTML pode usar, em vez disso, um arquivo vazio <code>.nojekyll</code> na raiz (testei neste site em
+21/11/2026), mas não um site com tema Jekyll: o <code>.nojekyll</code> desliga a publicação do tema.</p>
 
 <h2>4. O nome não é um domínio meu</h2>
 <ul>

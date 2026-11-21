@@ -469,10 +469,13 @@
       'extension) that contains only your DID (it starts with "did:"). It must open at https://' + r.handle + '/.well-known/atproto-did. ' +
       'Then press verify in the app.'];
     // Checked 2026-11-21 on ichtally.github.io: the default (Jekyll) build left a .well-known folder out (404); with an empty
-    // .nojekyll file at the root it was served.
-    if (sh.zone === 'github.io') out.push('GitHub Pages: the default build leaves out folders whose name starts with a dot, so ' +
-      '.well-known is missing from the live site. Add an empty file named .nojekyll at the top of the repository (or, if you use ' +
-      'Jekyll on purpose, add .well-known to "include:" in _config.yml).');
+    // .nojekyll file at the root it was served. 2026-11-21 (s49): 3 of 3 working github.io handles checked (ccanonne, kawarimidoll,
+    // juliusgarbe) use include: [".well-known"] in _config.yml instead (two of them as the only line). .nojekyll would switch off
+    // a Jekyll theme, so the config line comes first.
+    if (sh.zone === 'github.io') out.push('GitHub Pages: the default build (Jekyll) leaves out folders whose name starts with a dot, ' +
+      'so .well-known is missing from the live site (404). Fix: add the line include: [".well-known"] to _config.yml at the top of ' +
+      'the repository (create that file if there is none). That works with or without a Jekyll theme. A plain-HTML site can use an ' +
+      'empty file named .nojekyll at the top instead, but not a Jekyll-themed site: .nojekyll switches the build off.');
     if (r.http.reached) out.push('Right now /.well-known/atproto-did: ' + r.http.note);
     return out;
   }

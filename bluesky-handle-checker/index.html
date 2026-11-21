@@ -99,9 +99,12 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
   folder named <code>.well-known</code> at the top level with a plain-text file <code>atproto-did</code> (no extension) that contains
   only your DID. It must open at <code>https://you.github.io/.well-known/atproto-did</code>; then press verify.</p>
 <p><b>GitHub Pages:</b> the default build leaves out folders whose name starts with a dot, so the file is missing from the live site
-  (404). Add an empty file named <code>.nojekyll</code> at the top of the repository. I checked both on this site on 2026-11-21:
-  without it the file was not served, with it it was. A Neocities handle working this way (a real one, seen the same day) needed
-  nothing extra.</p>
+  (404). Fix: add the line <code>include: [".well-known"]</code> to <code>_config.yml</code> at the top of the repository (create
+  the file if there is none). That works with or without a Jekyll theme: the three working <code>github.io</code> handles I looked at
+  on 2026-11-21 all do this, two of them with that as the file's only line. A plain-HTML site can instead add an empty file named
+  <code>.nojekyll</code> at the top (I tested that on this site: without it the file was not served, with it it was), but don't do
+  that on a Jekyll-themed site, because it switches the build off. A Neocities handle working this way (a real one, seen the same
+  day) needed nothing extra.</p>
 
 <h3>It worked for months and now says "Invalid Handle"</h3>
 <p>Bluesky re-checks domain handles from time to time, so a handle can break long after it was set up. Run a check above, then:</p>

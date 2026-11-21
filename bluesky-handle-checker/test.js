@@ -340,7 +340,8 @@ t("siteHost: known website hosts only, not their own apex", () => {
 t("github.io, no record: file method + .nojekyll, no TXT or 'owner' advice", () => run("me.github.io", {})
   .then((r) => { const s = r.verdict.steps.join(" ");
     assert.match(s, /GitHub Pages address/); assert.match(s, /No DNS Panel/); assert.match(s, /https:\/\/me\.github\.io\/\.well-known\/atproto-did/);
-    assert.match(s, /\.nojekyll/); assert.ok(!/No TXT record found|not your own domain|host\/name/.test(s)); }));
+    assert.match(s, /include: \["\.well-known"\] to _config\.yml/); assert.ok(s.indexOf("_config.yml") < s.indexOf(".nojekyll"));
+    assert.match(s, /\.nojekyll switches the build off/); assert.ok(!/No TXT record found|not your own domain|host\/name/.test(s)); }));
 t("neocities, no record: file method, no GitHub-only step", () => run("me.neocities.org", {})
   .then((r) => { const s = r.verdict.steps.join(" ");
     assert.match(s, /Neocities address/); assert.ok(!/nojekyll|No TXT record found|not your own domain/.test(s)); }));
