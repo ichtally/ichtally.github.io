@@ -92,6 +92,17 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
     out here, saving the handle again in the app usually clears it.</li>
 </ul>
 
+<h3>A handle on GitHub Pages, Neocities, Netlify… (no DNS panel)</h3>
+<p>With a free site address like <code>you.github.io</code>, <code>you.neocities.org</code>, <code>you.netlify.app</code>,
+  <code>you.pages.dev</code> or <code>you.vercel.app</code>, the host runs the DNS, so you can't add a TXT record. You don't need one:
+  use the file. In the app: Settings, Account, Handle, "I have my own domain", then the <b>No DNS Panel</b> tab. In your site, make a
+  folder named <code>.well-known</code> at the top level with a plain-text file <code>atproto-did</code> (no extension) that contains
+  only your DID. It must open at <code>https://you.github.io/.well-known/atproto-did</code>; then press verify.</p>
+<p><b>GitHub Pages:</b> the default build leaves out folders whose name starts with a dot, so the file is missing from the live site
+  (404). Add an empty file named <code>.nojekyll</code> at the top of the repository. I checked both on this site on 2026-11-21:
+  without it the file was not served, with it it was. A Neocities handle working this way (a real one, seen the same day) needed
+  nothing extra.</p>
+
 <h3>It worked for months and now says "Invalid Handle"</h3>
 <p>Bluesky re-checks domain handles from time to time, so a handle can break long after it was set up. Run a check above, then:</p>
 <ul>

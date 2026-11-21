@@ -330,6 +330,28 @@ t("no record on a subdomain of a live domain: says the owner manages it", () => 
 t("no record on an apex domain: no 'not your own domain' step", () => run("example.com", {})
   .then((r) => { const s = r.verdict.steps.join(" ");
     assert.match(s, /No TXT record found/); assert.ok(!/not your own domain/.test(s)); }));
+// Real case 2026-11-21: armettebriard.neocities.org works through .well-known only; site hosts give no DNS access.
+t("siteHost: known website hosts only, not their own apex", () => {
+  assert.deepStrictEqual(H.siteHost("me.github.io"), { zone: "github.io", name: "GitHub Pages" });
+  assert.strictEqual(H.siteHost("me.neocities.org").name, "Neocities");
+  assert.strictEqual(H.siteHost("github.io"), null);
+  assert.strictEqual(H.siteHost("me.example.com"), null);
+});
+t("github.io, no record: file method + .nojekyll, no TXT or 'owner' advice", () => run("me.github.io", {})
+  .then((r) => { const s = r.verdict.steps.join(" ");
+    assert.match(s, /GitHub Pages address/); assert.match(s, /No DNS Panel/); assert.match(s, /https:\/\/me\.github\.io\/\.well-known\/atproto-did/);
+    assert.match(s, /\.nojekyll/); assert.ok(!/No TXT record found|not your own domain|host\/name/.test(s)); }));
+t("neocities, no record: file method, no GitHub-only step", () => run("me.neocities.org", {})
+  .then((r) => { const s = r.verdict.steps.join(" ");
+    assert.match(s, /Neocities address/); assert.ok(!/nojekyll|No TXT record found|not your own domain/.test(s)); }));
+t("neocities, ok via well-known: file is the only option, no TXT advice", () => run("me.neocities.org", { wk: { "me.neocities.org": A },
+  docs: { [A]: ["me.neocities.org"] }, profiles: { [A]: "me.neocities.org" } })
+  .then((r) => { assert.strictEqual(r.verdict.level, "ok"); const s = r.verdict.steps.join(" ");
+    assert.match(s, /On Neocities the file is the only option/); assert.ok(!/did=/.test(s)); }));
+t("github.io, file there but not switched yet: no 'add a TXT record' fallback", () => run("me.github.io", { wk: { "me.github.io": A },
+  docs: { [A]: ["me.bsky.social"] }, profiles: { [A]: "me.bsky.social" } })
+  .then((r) => { const s = r.verdict.steps.join(" ");
+    assert.match(s, /let \/\.well-known\/atproto-did through\./); assert.ok(!/add a TXT record/.test(s)); }));
 t("parked domain but the handle still resolves: no parked verdict", () => run("cached.net", {
   ns: { "cached.net": ["ns1.sedoparking.com"] }, resolve: { "cached.net": A } })
   .then((r) => { assert.ok(!/parked/.test(r.verdict.title)); }));

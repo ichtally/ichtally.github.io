@@ -452,6 +452,31 @@
       'your posts and followers stay, they belong to your account (DID), not the name. You can usually still log in with your email (see the FAQ below).'];
   }
 
+  // Website hosts that give each user a subdomain SITE (files) but no DNS. A TXT record is impossible there and "ask the
+  // domain's owner" is wrong advice; the /.well-known/atproto-did file is the way. Real case: armettebriard.neocities.org
+  // (2026-11-21) works through the file only. Kept to hosts where a user controls the site's files.
+  var SITE_HOSTS = { 'github.io': 'GitHub Pages', 'gitlab.io': 'GitLab Pages', 'neocities.org': 'Neocities',
+    'netlify.app': 'Netlify', 'pages.dev': 'Cloudflare Pages', 'vercel.app': 'Vercel' };
+  function siteHost(h) {
+    var z = regDomain(h);
+    return h !== z && SITE_HOSTS[z] ? { zone: z, name: SITE_HOSTS[z] } : null;
+  }
+  function siteFileSteps(r, sh) {
+    var out = [r.handle + ' is a ' + sh.name + ' address. ' + sh.name + ' runs the DNS for ' + sh.zone + ', so you can not add a ' +
+      'TXT record there (and nobody can add one for you). Use the file method instead: in the app, Settings, Account, Handle, ' +
+      '"I have my own domain", then the "No DNS Panel" tab. It shows the address and your DID.',
+      'In your site, create a folder named .well-known at the top level, and in it a plain-text file named atproto-did (no file ' +
+      'extension) that contains only your DID (it starts with "did:"). It must open at https://' + r.handle + '/.well-known/atproto-did. ' +
+      'Then press verify in the app.'];
+    // Checked 2026-11-21 on ichtally.github.io: the default (Jekyll) build left a .well-known folder out (404); with an empty
+    // .nojekyll file at the root it was served.
+    if (sh.zone === 'github.io') out.push('GitHub Pages: the default build leaves out folders whose name starts with a dot, so ' +
+      '.well-known is missing from the live site. Add an empty file named .nojekyll at the top of the repository (or, if you use ' +
+      'Jekyll on purpose, add .well-known to "include:" in _config.yml).');
+    if (r.http.reached) out.push('Right now /.well-known/atproto-did: ' + r.http.note);
+    return out;
+  }
+
   // level: ok | wait | bad. steps: what to do next.
   function verdict(r) {
     if (r.syntaxError) return { level: 'bad', title: 'Not a valid handle', steps: [r.syntaxError] };
@@ -520,6 +545,8 @@
             '", value "did=" followed by your DID.');
         if (zone2 !== r.handle) steps.push('If ' + zone2 + ' is not your own domain (a shared or free subdomain ' +
           'service), only its owner can change this; ask them.');
+      } else if (!(r.misplaced || []).length && !r.dns.pick.notes.length && !r.dns.txt.length && siteHost(r.handle)) {
+        steps = steps.concat(siteFileSteps(r, siteHost(r.handle)));
       } else if (!(r.misplaced || []).length && !r.dns.pick.notes.length) {
         steps.push(r.dns.txt.length ?'There are TXT records on _atproto.' + r.handle + ', but none starts with "did=".' :
           'No TXT record found at _atproto.' + r.handle + '. Add one: type TXT, host/name "' +
@@ -561,8 +588,9 @@
       if (r.didSource === 'http') half.push('Your browser could read https://' + r.handle + '/.well-known/atproto-did, but when you ' +
         'verify, it is your account\'s server' + (r.pds ? ' (' + hostName(r.pds) + ')' : '') + ' that fetches it, not your browser. ' +
         'If the app says it can not verify, the website may be blocking server requests (for example a Cloudflare bot check). ' +
-        'Ask whoever runs the site to let /.well-known/atproto-did through, or, if you control the domain\'s DNS, add a TXT record ' +
-        'instead: host/name "' + hostField(r.handle, regDomain(r.handle)) + '", value did=' + r.did + '.');
+        'Ask whoever runs the site to let /.well-known/atproto-did through' + (siteHost(r.handle) ? '.' :
+        ', or, if you control the domain\'s DNS, add a TXT record ' +
+        'instead: host/name "' + hostField(r.handle, regDomain(r.handle)) + '", value did=' + r.did + '.'));
       return { level: 'wait', title: 'Half done: the domain points to the account, but the account has not switched to it',
         steps: steps.concat(half) };
     }
@@ -599,8 +627,10 @@
     }
     if (r.profile && r.profile.handle === r.handle) {
       if (r.didSource === 'http') steps.push('This handle works through the .well-known file only. That is allowed, but if the ' +
-        'website is down or slow when Bluesky re-checks, the handle shows as invalid until the next check. A DNS TXT record ' +
-        '(_atproto, value did=' + r.did + ') does not depend on the website.');
+        'website is down or slow when Bluesky re-checks, the handle shows as invalid until the next check. ' +
+        (siteHost(r.handle) ? 'On ' + siteHost(r.handle).name + ' the file is the only option (no DNS access), so keep it in place ' +
+          'when you rebuild or redesign the site.' :
+          'A DNS TXT record (_atproto, value did=' + r.did + ') does not depend on the website.'));
       steps.push('Still seeing "Invalid Handle" in the app? Then the setup is fine right now and an earlier check failed. ' +
         'To force a fresh check: Settings, Account, Handle, "I have my own domain", enter ' + r.handle + ', verify, then "Update to ' +
         r.handle + '".');
@@ -616,6 +646,6 @@
 
   var api = { normalizeInput: normalizeInput, validateHandle: validateHandle, serviceNameNote: serviceNameNote, parseTxtData: parseTxtData, pickDid: pickDid,
     parseWellKnown: parseWellKnown, hostField: hostField, regDomain: regDomain, akaHandles: akaHandles, pdsOf: pdsOf, didDocUrl: didDocUrl, isValidDid: isValidDid,
-    hostedSuffix: hostedSuffix, check: check, verdict: verdict };
+    hostedSuffix: hostedSuffix, siteHost: siteHost, check: check, verdict: verdict };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.HandleCheck = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
