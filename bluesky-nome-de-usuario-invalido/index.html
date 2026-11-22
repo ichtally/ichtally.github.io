@@ -78,6 +78,7 @@ mesmas consultas que o Bluesky e diz o que corrigir, incluindo o valor exato do 
   <tr><td><i>No TXT record found at _atproto…</i></td><td>Falta o registro TXT. Crie: tipo TXT, nome/host <code>_atproto</code>, valor <code>did=</code> + seu DID.</td></tr>
   <tr><td><i>All good</i></td><td>Está tudo certo agora; a falha foi passageira. Salve o nome de novo no app (passo 1).</td></tr>
   <tr><td><i>… is a GitHub Pages / Neocities … address</i></td><td>Endereço de site gratuito: não dá para criar registro DNS. Use o arquivo (abaixo).</td></tr>
+  <tr><td><i>… is this account's old handle; it moved and is now …</i></td><td>É o nome antigo da conta, de antes de ela mudar de servidor. Não há o que corrigir: verifique o nome novo (passo 4).</td></tr>
 </table>
 <p><b>Nome no GitHub Pages, Neocities, Netlify…</b> (por exemplo <code>voce.github.io</code> ou <code>voce.neocities.org</code>): quem
 cuida do DNS é o serviço, então não há registro TXT para criar. Use o arquivo: no app, em Configurações → Conta → Nome de usuário →
@@ -94,6 +95,10 @@ com ou sem tema Jekyll. Um site só em HTML pode usar, em vez disso, um arquivo 
     quem cuida do registro e da renovação é o dono do domínio. Peça para ele, ou escolha outro nome (passo 5).</li>
   <li><b>Um nome de outro servidor</b> (a sua conta não fica no <code>bsky.social</code>): quem responde pelo nome é esse servidor.
     Se ele estiver fora do ar, o nome fica inválido até ele voltar; não há registro DNS para você criar.</li>
+  <li><b>Você acabou de mudar a conta para outro servidor</b> (Blacksky, Eurosky…): é comum o nome aparecer como inválido logo depois.
+    Nos casos reais que vi (de outubro de 2025 a novembro de 2026), passou sozinho em cerca de 8 a 25 minutos, então espere meia hora antes
+    de mexer em algo. Um nome <code>.bsky.social</code> não vai junto: o novo servidor dá um nome dele (por exemplo <code>nome.blacksky.app</code>),
+    ou você usa um domínio seu. Um nome no seu próprio domínio continua funcionando (o registro guarda o seu DID, que não muda).</li>
 </ul>
 
 <h2>5. Voltar para um nome .bsky.social</h2>
