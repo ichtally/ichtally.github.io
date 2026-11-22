@@ -207,7 +207,10 @@
     return fetchFn('https://' + h + '/.well-known/atproto-did', {}).then(function (r) {
       return r.text().then(function (t) {
         var p = parseWellKnown(t);
-        if (r.status !== 200) p.note = 'HTTP ' + r.status + '. ' + (p.did ? '' : p.note);
+        // A 404 is simply "no file here" (normal with the TXT method), whatever error page the site sends with it.
+        if (r.status === 404 && !p.did) p.note = 'HTTP 404: there is no file at this address. That is fine if you use the TXT ' +
+          'record; it only matters for the file method.';
+        else if (r.status !== 200) p.note = 'HTTP ' + r.status + '. ' + (p.did ? '' : p.note);
         return { reached: true, status: r.status, did: p.did, note: p.note };
       });
     }, function () {
@@ -476,7 +479,9 @@
       'so .well-known is missing from the live site (404). Fix: add the line include: [".well-known"] to _config.yml at the top of ' +
       'the repository (create that file if there is none). That works with or without a Jekyll theme. A plain-HTML site can use an ' +
       'empty file named .nojekyll at the top instead, but not a Jekyll-themed site: .nojekyll switches the build off.');
-    if (r.http.reached) out.push('Right now /.well-known/atproto-did: ' + r.http.note);
+    // No TXT option on these hosts, so the generic 404 note ("fine if you use the TXT record") would mislead here.
+    if (r.http.reached) out.push('Right now /.well-known/atproto-did: ' + (r.http.status === 404 && !r.http.did ?
+      'HTTP 404, the file is not there (yet).' : r.http.note));
     return out;
   }
 

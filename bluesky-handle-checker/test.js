@@ -35,6 +35,8 @@ function world(w) {
     }
     if (u.pathname === "/.well-known/atproto-did") {
       const body = (w.wk || {})[u.host];
+      // w.wk404 = hosts whose site answers this path with a 404 HTML error page.
+      if ((w.wk404 || []).includes(u.host)) return Promise.resolve({ status: 404, text: () => Promise.resolve("<!doctype html><h1>Not found</h1>") });
       if (body === undefined || body === null) return Promise.reject(new TypeError("Failed to fetch"));
       return Promise.resolve({ status: 200, text: () => Promise.resolve(body) });
     }
@@ -337,6 +339,13 @@ t("SERVFAIL on a shared domain: 'not your own domain' step", () => run("me.dead-
 t("SERVFAIL but Bluesky still resolves it from cache: no SERVFAIL verdict", () => run("dead-dns.com", { servfail: ["dead-dns.com"],
   resolve: { "dead-dns.com": A } })
   .then((r) => { assert.strictEqual(r.didSource, "appview"); assert.ok(!/not answering/.test(r.verdict.title)); }));
+t("well-known 404 with an HTML error page: 'no file here', not 'site builder sends home page'", () => run("example.com", {
+  wk404: ["example.com"] })
+  .then((r) => { assert.strictEqual(r.http.status, 404); assert.match(r.http.note, /no file at this address/);
+    assert.ok(!/site builders/.test(r.http.note)); }));
+t("well-known 404 on a GitHub Pages handle: no 'TXT record' wording", () => run("me.github.io", { wk404: ["me.github.io"] })
+  .then((r) => { const s = r.verdict.steps.join(" ");
+    assert.match(s, /HTTP 404, the file is not there \(yet\)/); assert.ok(!/fine if you use the TXT/.test(s)); }));
 // Real case 2026-11-21: name under a live community domain, member's _atproto record gone.
 t("no record on a subdomain of a live domain: says the owner manages it", () => run("me.example.com", {})
   .then((r) => { const s = r.verdict.steps.join(" ");
