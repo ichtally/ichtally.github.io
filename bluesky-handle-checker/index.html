@@ -186,6 +186,18 @@ publishes, the handle is a field on your account that gets overwritten (<code>up
 can register it next. Links that contain the old name (<code>bsky.app/profile/old-name</code>, shared post links) then stop
 working or lead to whoever took it. Your posts, followers and existing mentions stay with you (they point to your DID).</p>
 
+<h3>I moved my account to another server (Blacksky, Eurosky…) and now it says "Invalid Handle"</h3>
+<p>Usually that just needs a little time. I looked at real moves to Blacksky and myatproto.social (October 2025 to November 2026). People posted "Invalid Handle"
+4 to 8 minutes after the move. The ones who followed up said it was gone again after about 8 to 25 minutes, and all 8 moved accounts I re-checked
+on 22 November 2026 had working handles. So wait half an hour before changing anything. If you put the new handle in the box above
+within two days of a move, the check says when the account moved.<br>
+A <code>.bsky.social</code> name doesn't move with you. The new server gives you one of its own names (Blacksky's guide: "Your handle will change
+(e.g., from <code>name.bsky.social</code> to <code>name.blacksky.app</code>)"), or you can use a domain you own. Your old name still points to your
+account for now, because the old account on Bluesky's server keeps it. Checking the old name above says "old handle" and shows the new one.
+A handle on <b>your own domain</b> keeps working after a move: the record holds your DID, and the DID stays the same.<br>
+Still invalid after an hour? Put the new handle in the box above. If the setup is fine, re-save the handle (Settings → Account → Handle), and
+if that doesn't help, ask your new server's support.</p>
+
 <h3>"Invalid Handle" when signing up or picking a new name</h3>
 <p>That is a name rule, not DNS. Handles use only letters, digits and hyphens between the dots: <b>no underscores</b> (unlike X/Twitter),
 no spaces, no symbols like &amp; or '. Capitals are fine (they are lowercased). On Bluesky's own server the part before
@@ -204,7 +216,7 @@ Cloudflare's public DNS (or Google's if that fails), which may see a change slig
 <h2>What this page sends, and limits</h2>
 <ul>
   <li>To check, your browser asks: Cloudflare or Google DNS-over-HTTPS (for the TXT records, and the domain's nameservers if no record is found), your domain
-    (<code>/.well-known/atproto-did</code>), <code>plc.directory</code> (DID document), the account's hosting server
+    (<code>/.well-known/atproto-did</code>), <code>plc.directory</code> (DID document and its public change log: past handles and servers), the account's hosting server
     (<code>describeServer</code>, to see which names it hands out; for a name that doesn't resolve, the parent domain's), Bluesky's relay
     (<code>relay1.us-east.bsky.network</code>, only when that parent doesn't answer: is it a known hosting server?), and Bluesky's public API
     (<code>public.api.bsky.app</code>). Nothing goes to me; there is no server behind this page.</li>

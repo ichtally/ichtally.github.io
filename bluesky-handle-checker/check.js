@@ -152,6 +152,35 @@
     return s ? s.serviceEndpoint : null;
   }
 
+  // Bluesky's own servers: bsky.social and *.host.bsky.network. Bluesky moved accounts between these itself (2023), so a change
+  // inside this group is not the user moving.
+  function pdsGroup(url) {
+    var h = hostName(url || '');
+    return /(^|\.)bsky\.(social|network)$/.test(h) ? 'bluesky' : h;
+  }
+
+  // Summary of a did:plc audit log (plc.directory/<did>/log/audit) for one handle: when the account last moved to a different
+  // server, and whether `handle` is a name it USED to claim (until when, and on which server).
+  // Real case 2026-11-22: someone moved to Blacksky, saw "Invalid Handle" ~7 min later; their old .bsky.social name still
+  // points to the DID (the old account keeps it), so without this the checker said "Half done, add a TXT record" for it.
+  function plcHistory(log, handle) {
+    var out = { lastMove: null, movedFrom: null, former: null };
+    var prevPds = null, prevAka = null;
+    (log || []).forEach(function (e) {
+      if (!e || e.nullified || !e.operation) return;
+      var op = e.operation;
+      var aka = op.alsoKnownAs ? op.alsoKnownAs.map(function (a) { return String(a).replace(/^at:\/\//, '').toLowerCase(); }) :
+        (op.handle ? [String(op.handle).toLowerCase()] : []);
+      var pds = (op.services && op.services.atproto_pds && op.services.atproto_pds.endpoint) || op.service || null;
+      if (op.type === 'plc_tombstone') return;
+      if (prevPds && pds && pdsGroup(pds) !== pdsGroup(prevPds)) { out.lastMove = e.createdAt; out.movedFrom = prevPds; }
+      if (prevAka && prevAka.indexOf(handle) >= 0 && aka.indexOf(handle) < 0) out.former = { until: e.createdAt, pds: prevPds };
+      if (aka.indexOf(handle) >= 0) out.former = null;
+      prevPds = pds || prevPds; prevAka = aka;
+    });
+    return out;
+  }
+
   function didDocUrl(did) {
     if (/^did:plc:/.test(did)) return 'https://plc.directory/' + did;
     if (/^did:web:/.test(did)) return 'https://' + decodeURIComponent(did.slice(8)) + '/.well-known/did.json';
@@ -171,6 +200,11 @@
   // (status.bsky.app, 00:50-01:35 UTC); every handle I checked hours later was fine again.
   var STATUS_NOTE = 'Lots of people seeing it at the same time? Then it is likely on Bluesky\'s side. Bluesky posts outages and ' +
     'maintenance at https://status.bsky.app; the waves I have looked at cleared within a day.';
+
+  // Real cases (Blacksky / myatproto.social moves, 2025-10 to 2026-11): people posted "Invalid Handle" 4-8 minutes after the
+  // PLC move; the ones who followed up said it cleared on its own after ~8-25 minutes. All 8 I re-checked later were fine.
+  var MOVED_NOTE = 'Seeing "Invalid Handle" right after moving to another server? That is common. In the moves I looked at, it ' +
+    'cleared on its own within about 10 to 30 minutes, so wait before changing anything.';
 
   // Nameservers of domain parking / marketplace services, and GoDaddy's "expired, pending deletion" servers.
   // A domain served by these is not pointing at anyone's own DNS any more. Kept short on purpose: only names checked
@@ -370,11 +404,16 @@
         rep.profile = docs[1] && docs[1].handle ? { handle: docs[1].handle, displayName: docs[1].displayName || '' } : null;
         rep.profileError = docs[1] && docs[1].error ? String(docs[1].error) : null;
       }
-      if (!rep.pds || !/^https:\/\//.test(rep.pds)) return null;
-      return userDomains(fetchFn, rep.pds).then(function (d) {
+      rep.now = Date.now();
+      var plcP = rep.doc && /^did:plc:/.test(rep.did) ?
+        getJson(fetchFn, 'https://plc.directory/' + rep.did + '/log/audit').then(function (x) {
+          rep.plc = x.status === 200 && Array.isArray(x.json) ? plcHistory(x.json, h) : null;
+        }, function () { rep.plc = null; }) : null;
+      if (!rep.pds || !/^https:\/\//.test(rep.pds)) return plcP;
+      return Promise.all([plcP, userDomains(fetchFn, rep.pds).then(function (d) {
         var sfx = hostedSuffix(h, d);
         rep.hosted = sfx ? { pds: hostName(rep.pds), suffix: sfx } : null;
-      });
+      })]);
     }).then(function () {
       rep.verdict = verdict(rep);
       return rep;
@@ -603,6 +642,25 @@
     if (!r.doc) {
       return { level: 'wait', title: r.handle + ' points to ' + r.did, steps: steps.concat(['Could not load the DID document to finish the check.']) };
     }
+    var cur = (r.aka || [])[0] || null;
+    if (!claimed && r.plc && r.plc.former && cur) {
+      var until = String(r.plc.former.until).slice(0, 10);
+      var moved = r.plc.former.pds && r.pds && pdsGroup(r.plc.former.pds) !== pdsGroup(r.pds);
+      if (moved) {
+        var mv = ['This account used ' + r.handle + ' until ' + until + '. It has since moved to another server (' + hostName(r.pds) +
+          ') and its handle is now ' + cur + '. ' + r.handle + ' still points to the account, but the account no longer claims it, ' +
+          'so the app does not show it.'];
+        mv.push(regDomain(r.handle) === 'bsky.social' ?
+          'Names ending in .bsky.social belong to accounts on Bluesky\'s own servers. Moving does not take the name along: the ' +
+          'new server gives you one of its own names, or you can use a domain you own. Nothing to fix here; check ' + cur + ' instead.' :
+          'If ' + r.handle + ' is your own domain and you want it back: change your handle in the app, choose the option for your ' +
+          'own domain, enter ' + r.handle + ' and verify. Otherwise there is nothing to fix here; check ' + cur + ' instead.');
+        mv.push(MOVED_NOTE);
+        return { level: 'ok', title: r.handle + ' is this account\'s old handle; it moved and is now ' + cur, steps: steps.concat(mv) };
+      }
+      steps.push('This account used ' + r.handle + ' until ' + until + ', then switched to ' + cur + '. The record still points ' +
+        'to it, so switching back works as below.');
+    }
     if (!claimed) {
       var half = ['The account currently claims: ' + ((r.aka || []).join(', ') || 'no handle') + '.',
         'Finish in the Bluesky app: change your handle, choose the option for your own domain, enter ' + r.handle + ' and verify.'];
@@ -638,6 +696,13 @@
       return { level: 'bad', title: down ? 'The records are right, but Bluesky has suspended the account they point to' :
         'The records are right, but the account they point to is deactivated', steps: steps.concat(out) };
     }
+    // Moved to another server in the last 2 days: say so first, it is the likeliest reason for a brief "Invalid Handle".
+    var sinceMove = r.plc && r.plc.lastMove && r.now ? r.now - Date.parse(r.plc.lastMove) : NaN;
+    if (sinceMove >= 0 && sinceMove < 2 * 86400000) {
+      var mins = Math.round(sinceMove / 60000);
+      steps.push('This account moved to ' + hostName(r.pds) + ' ' + (mins < 120 ? mins + ' minutes' : Math.round(mins / 60) + ' hours') +
+        ' ago (' + String(r.plc.lastMove).slice(0, 16).replace('T', ' ') + ' UTC). ' + MOVED_NOTE);
+    }
     if (r.profile && r.profile.handle === r.handle && r.hosted) {
       var sub = r.handle.slice(0, -r.hosted.suffix.length);
       steps.push('This handle comes from your hosting service, which hands out names ending in ' + r.hosted.suffix +
@@ -669,6 +734,6 @@
 
   var api = { normalizeInput: normalizeInput, validateHandle: validateHandle, serviceNameNote: serviceNameNote, parseTxtData: parseTxtData, pickDid: pickDid,
     parseWellKnown: parseWellKnown, hostField: hostField, regDomain: regDomain, akaHandles: akaHandles, pdsOf: pdsOf, didDocUrl: didDocUrl, isValidDid: isValidDid,
-    hostedSuffix: hostedSuffix, siteHost: siteHost, check: check, verdict: verdict };
+    hostedSuffix: hostedSuffix, siteHost: siteHost, plcHistory: plcHistory, check: check, verdict: verdict };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.HandleCheck = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

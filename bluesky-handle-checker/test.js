@@ -40,6 +40,13 @@ function world(w) {
       if (body === undefined || body === null) return Promise.reject(new TypeError("Failed to fetch"));
       return Promise.resolve({ status: 200, text: () => Promise.resolve(body) });
     }
+    // w.plcLog = {did: [[createdAt, [handles], pdsUrl], ...]} answers /<did>/log/audit (oldest first, like the real one).
+    if (u.host === "plc.directory" && u.pathname.endsWith("/log/audit")) {
+      const lg = (w.plcLog || {})[u.pathname.split("/")[1]];
+      return lg ? json(200, lg.map(([createdAt, aka, pds]) => ({ createdAt, nullified: false, operation: { type: "plc_operation",
+        alsoKnownAs: aka.map((h) => "at://" + h), services: { atproto_pds: { type: "AtprotoPersonalDataServer", endpoint: pds } } } })))
+        : json(404, { message: "DID not registered" });
+    }
     if (u.host === "plc.directory") {
       const did = u.pathname.slice(1), aka = (w.docs || {})[did];
       return aka ? json(200, { id: did, alsoKnownAs: aka.map((h) => "at://" + h),
@@ -417,5 +424,57 @@ t("bsky.social 3-18 rule is a note, not an error", () => {
 t("short bsky.social name still runs the live checks", () => run("jo.bsky.social", {}).then((r) => {
   assert.ok(r.dns !== undefined); assert.ok(r.inputNotes.some((s) => /3 to 18/.test(s)));
 }));
+
+// ---- account moved to another server (real case 2026-11-22: Blacksky move, "Invalid Handle" 7 minutes later) ----
+t("plcHistory: last move, former handle; Bluesky-internal host changes are not a move", () => {
+  const op = (at, aka, pds) => ({ createdAt: at, operation: { type: "plc_operation", alsoKnownAs: aka.map((x) => "at://" + x),
+    services: { atproto_pds: { endpoint: pds } } } });
+  const log = [op("2023-10-01T00:00:00Z", ["me.bsky.social"], "https://bsky.social"),
+    op("2023-11-13T00:00:00Z", ["me.bsky.social"], "https://lionsmane.us-east.host.bsky.network"),
+    op("2026-11-22T16:18:59Z", ["me.blacksky.app"], "https://blacksky.app")];
+  const p = H.plcHistory(log, "me.bsky.social");
+  assert.strictEqual(p.lastMove, "2026-11-22T16:18:59Z"); assert.strictEqual(p.former.until, "2026-11-22T16:18:59Z");
+  assert.strictEqual(H.plcHistory(log.slice(0, 2), "me.bsky.social").lastMove, null);   // bsky.social -> lionsmane: Bluesky's own move
+  assert.strictEqual(H.plcHistory(log, "me.blacksky.app").former, null);                // current handle is not "former"
+  // legacy "create" op shape + nullified ops are handled
+  assert.strictEqual(H.plcHistory([{ createdAt: "2023-01-01T00:00:00Z", operation: { type: "create", handle: "old.bsky.social",
+    service: "https://bsky.social" } }, { createdAt: "2023-02-01T00:00:00Z", nullified: true, operation: { type: "plc_operation",
+    alsoKnownAs: ["at://x.com"], services: { atproto_pds: { endpoint: "https://x.com" } } } }], "old.bsky.social").former, null);
+});
+const movedWorld = (extra) => Object.assign({
+  wk: { "me.bsky.social": A }, docs: { [A]: ["me.blacksky.app"] }, pds: { [A]: "https://blacksky.app" },
+  profiles: { [A]: "me.blacksky.app" }, hosts: { "blacksky.app": [".blacksky.app"] },
+  plcLog: { [A]: [["2024-11-09T06:20:30Z", ["me.bsky.social"], "https://ganoderma.us-west.host.bsky.network"],
+    ["2026-07-29T20:34:14Z", ["me.blacksky.app"], "https://blacksky.app"]] } }, extra || {});
+t("old .bsky.social name after moving: 'old handle', no TXT / own-domain steps", () => run("me.bsky.social", movedWorld())
+  .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.match(r.verdict.title, /old handle.*me\.blacksky\.app/);
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /until 2026-07-29/); assert.match(s, /blacksky\.app/); assert.match(s, /does not take the name along/);
+    assert.ok(!/TXT record/.test(s)); assert.ok(!/Half done/.test(r.verdict.title)); }));
+t("old OWN domain after moving: explains how to take it back", () => run("me.example.com", movedWorld({
+  wk: {}, dns: { "_atproto.me.example.com": ['"did=' + A + '"'] },
+  plcLog: { [A]: [["2025-01-01T00:00:00Z", ["me.example.com"], "https://bsky.social"],
+    ["2026-07-29T20:34:14Z", ["me.blacksky.app"], "https://blacksky.app"]] } }))
+  .then((r) => { assert.match(r.verdict.title, /old handle/); assert.match(r.verdict.steps.join(" "), /want it back/); }));
+t("switched away from own domain WITHOUT moving: still 'Half done', plus the history line", () => run("example.com", {
+  dns: { "_atproto.example.com": ['"did=' + A + '"'] }, docs: { [A]: ["me.bsky.social"] }, profiles: { [A]: "me.bsky.social" },
+  pds: { [A]: "https://lionsmane.us-east.host.bsky.network" },
+  plcLog: { [A]: [["2024-01-01T00:00:00Z", ["example.com"], "https://bsky.social"],
+    ["2026-01-01T00:00:00Z", ["me.bsky.social"], "https://lionsmane.us-east.host.bsky.network"]] } })
+  .then((r) => { assert.match(r.verdict.title, /Half done/); assert.match(r.verdict.steps.join(" "), /used example\.com until 2026-01-01/); }));
+t("new handle minutes after a move: 'moved N minutes ago' note", () => {
+  const at = new Date(Date.now() - 7 * 60000).toISOString();
+  return run("me.blacksky.app", movedWorld({ wk: { "me.blacksky.app": A },
+    plcLog: { [A]: [["2024-11-09T06:20:30Z", ["me.bsky.social"], "https://bsky.social"], [at, ["me.blacksky.app"], "https://blacksky.app"]] } }))
+    .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.match(r.verdict.steps.join(" "), /moved to blacksky\.app 7 minutes ago/); });
+});
+t("new handle, move long ago: no move note", () => run("me.blacksky.app", movedWorld({ wk: { "me.blacksky.app": A } }))
+  .then((r) => { assert.strictEqual(r.verdict.level, "ok"); assert.ok(!/moved to/.test(r.verdict.steps.join(" "))); }));
+t("AppView still shows handle.invalid right after a move: wait + move note", () => {
+  const at = new Date(Date.now() - 3 * 3600000).toISOString();
+  return run("me.blacksky.app", movedWorld({ wk: { "me.blacksky.app": A }, profiles: { [A]: "handle.invalid" },
+    plcLog: { [A]: [["2024-11-09T06:20:30Z", ["me.bsky.social"], "https://bsky.social"], [at, ["me.blacksky.app"], "https://blacksky.app"]] } }))
+    .then((r) => { assert.strictEqual(r.verdict.level, "wait"); assert.match(r.verdict.steps.join(" "), /3 hours ago/); });
+});
 
 Promise.all(pending).then(() => console.log("\n" + n + " tests passed"), (e) => { console.error(e); process.exit(1); });
