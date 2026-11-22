@@ -177,6 +177,15 @@ This is also the quick way out when the domain isn't yours to fix: in a real cas
 handle under a community's domain stopped working switched to a <code>.bsky.social</code> name, and the same account (same DID)
 was back to a working handle. You can switch to a domain again later.</p>
 
+<h3>Should I just pick a new handle?</h3>
+<p>Only when the old one can't come back: the domain lapsed or was resold, or it isn't yours to fix. If a <code>.bsky.social</code>
+name shows "Invalid Handle", or lots of people see it at the same time, it is usually on Bluesky's side and clears by itself
+(the handles I checked after the 20 November 2026 wave were all back the next day). Re-save the same name first
+(Settings → Account → Handle, type the same name, Save). A change frees your old name straight away: in the PDS server code Bluesky
+publishes, the handle is a field on your account that gets overwritten (<code>updateHandle</code>), with no hold period, so anyone
+can register it next. Links that contain the old name (<code>bsky.app/profile/old-name</code>, shared post links) then stop
+working or lead to whoever took it. Your posts, followers and existing mentions stay with you (they point to your DID).</p>
+
 <h3>"Invalid Handle" when signing up or picking a new name</h3>
 <p>That is a name rule, not DNS. Handles use only letters, digits and hyphens between the dots: <b>no underscores</b> (unlike X/Twitter),
 no spaces, no symbols like &amp; or '. Capitals are fine (they are lowercased). On Bluesky's own server the part before
