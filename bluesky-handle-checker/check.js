@@ -495,6 +495,21 @@
             'host/name "' + hostField(r.handle, r.apex.name) + '", value "did=" followed by your DID. Then re-verify the handle in the app.'],
             notYoursStep(r)) };
       }
+      // SERVFAIL on the registered name: it is registered, but its nameservers do not answer (or DNSSEC is broken), so no
+      // record under it can be read. Real case 2026-11-22: mattckrause.com, renewed 11-16, both nameservers silent
+      // (Google + Cloudflare: "No Reachable Authority"); without this branch the checker said "add a TXT record".
+      if (r.apex && r.apex.rcode === 2) {
+        return { level: 'bad', title: 'The DNS servers for ' + r.apex.name + ' are not answering',
+          steps: steps.concat(['DNS lookups for ' + r.apex.name + ' fail (SERVFAIL): the domain is registered, but the nameservers it ' +
+            'points to do not answer, so Bluesky can not read any record there, including _atproto. This is a problem with the ' +
+            'domain\'s DNS hosting, not with Bluesky or your account.',
+          'At the place you bought the domain (registrar), check which nameservers it uses and that the DNS service behind them is ' +
+            'still active, especially if you recently renewed, transferred or changed the domain. A DNSSEC setting left on at the ' +
+            'registrar after moving DNS to another provider fails the same way: switch DNSSEC off there, or set it up at the new provider.',
+          'If it worked until recently and you changed nothing, it can be a short outage at the DNS provider: check again in an hour. ' +
+            'Once the domain answers again, make sure the TXT record is still there: host/name "' + hostField(r.handle, r.apex.name) +
+            '", value "did=" followed by your DID. Then re-verify the handle in the app.'], notYoursStep(r)) };
+      }
       if (r.apex && r.apex.parked) {
         return { level: 'bad', title: 'The domain ' + r.apex.name + ' looks parked, for sale, or expired',
           steps: steps.concat(['Its nameservers are ' + r.apex.ns.join(', ') + ', which belong to ' + r.apex.parked +

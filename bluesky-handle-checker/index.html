@@ -118,6 +118,10 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
     parking or domain-marketplace service. Usually the registration lapsed and the domain was parked or resold.
     Check whether you still own it. If you do, point the nameservers back to your DNS host and re-add the record; if not,
     the handle can't come back, so pick a new one (your posts and followers stay with your account).</li>
+  <li><b>The check says the DNS servers are not answering.</b> The domain is registered, but every lookup fails (SERVFAIL),
+    so no record can be read. At your registrar, check which nameservers the domain uses and that that DNS service is still
+    active (worth a look after a renewal or transfer). DNSSEC left switched on at the registrar after moving DNS elsewhere
+    breaks lookups the same way. Once the domain answers again, check that the TXT record is still there.</li>
   <li><b>The check says <code>_atproto</code> is an alias (CNAME).</b> A wildcard <code>*</code> record now answers for every
     name on the domain, often one the registrar added for parking or URL forwarding, and it hides the missing TXT record.
     Adding an exact TXT record at <code>_atproto</code> wins over the wildcard. On a shared subdomain service, only the

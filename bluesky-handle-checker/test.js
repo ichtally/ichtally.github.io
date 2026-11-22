@@ -17,6 +17,8 @@ function world(w) {
       const name = q.get("name"), recs = (w.dns || {})[name];
       // w.nx = domains that do not exist (NXDOMAIN for them and everything below); other names exist, maybe empty.
       if ((w.nx || []).some((z) => name === z || name.endsWith("." + z))) return json(200, { Status: 3 });
+      // w.servfail = registered domains whose nameservers don't answer (SERVFAIL for them and everything below).
+      if ((w.servfail || []).some((z) => name === z || name.endsWith("." + z))) return json(200, { Status: 2 });
       // w.ns = {domain: [nameservers]} (answers type=NS), w.cname = {name: target}, w.wildcard = {zone: target}
       // (*.zone CNAME target, for names with no records of their own). A CNAME answer also carries the target's TXT.
       if (q.get("type") === "NS") {
@@ -323,6 +325,18 @@ t("GoDaddy pending-deletion nameservers count as parked", () => run("me.old-site
 t("normal nameservers: normal advice, and lookalike names don't match", () => run("me.example.com", {
   ns: { "example.com": ["ns1.notdan.com", "a.iana-servers.net"] } })
   .then((r) => { assert.ok(!/parked/.test(r.verdict.title)); assert.match(r.verdict.steps.join(" "), /No TXT record found/); }));
+// Real case 2026-11-22: mattckrause.com is registered (renewed 11-16) but its nameservers don't answer: SERVFAIL, not NXDOMAIN.
+t("nameservers not answering (SERVFAIL): says DNS hosting, not 'add a record'", () => run("dead-dns.com", { servfail: ["dead-dns.com"] })
+  .then((r) => { assert.strictEqual(r.verdict.level, "bad"); assert.match(r.verdict.title, /DNS servers for dead-dns\.com are not answering/);
+    const s = r.verdict.steps.join(" ");
+    assert.match(s, /SERVFAIL/); assert.match(s, /DNSSEC/); assert.match(s, /host\/name "_atproto"/);
+    assert.ok(!/No TXT record found/.test(s)); assert.ok(!/not your own domain/.test(s)); }));
+t("SERVFAIL on a shared domain: 'not your own domain' step", () => run("me.dead-dns.com", { servfail: ["dead-dns.com"] })
+  .then((r) => { assert.match(r.verdict.title, /dead-dns\.com are not answering/);
+    assert.match(r.verdict.steps.join(" "), /If dead-dns\.com is not your own domain/); }));
+t("SERVFAIL but Bluesky still resolves it from cache: no SERVFAIL verdict", () => run("dead-dns.com", { servfail: ["dead-dns.com"],
+  resolve: { "dead-dns.com": A } })
+  .then((r) => { assert.strictEqual(r.didSource, "appview"); assert.ok(!/not answering/.test(r.verdict.title)); }));
 // Real case 2026-11-21: name under a live community domain, member's _atproto record gone.
 t("no record on a subdomain of a live domain: says the owner manages it", () => run("me.example.com", {})
   .then((r) => { const s = r.verdict.steps.join(" ");

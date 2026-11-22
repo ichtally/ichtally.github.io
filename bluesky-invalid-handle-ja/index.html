@@ -78,6 +78,7 @@ Blueskyと同じ問い合わせをして、何を直せばいいか（レコー�
   <tr><th>チェッカーの表示</th><th>意味</th></tr>
   <tr><td><i>The domain … does not exist right now</i></td><td>ドメインが今存在しない。ほぼ期限切れです。更新してください。</td></tr>
   <tr><td><i>… looks parked, for sale, or expired</i></td><td>駐車ページか売り出し中。まだ自分のドメインか確認してください。</td></tr>
+  <tr><td><i>The DNS servers for … are not answering</i></td><td>ドメインはあるが、DNSサーバーが応答しない。レジストラでネームサーバーとDNSSECの設定を確認してください。</td></tr>
   <tr><td><i>No TXT record found at _atproto…</i></td><td>TXTレコードがない。種類TXT、名前（ホスト）<code>_atproto</code>、値 <code>did=</code>＋自分のDID で作成します。</td></tr>
   <tr><td><i>There are 2 "did=" records</i></td><td>レコードが2つある。チェッカーが示す、自分のものでない方を削除します。</td></tr>
   <tr><td><i>All good</i></td><td>今は問題なし。一時的な失敗でした。アプリでハンドルを保存し直してください（1を参照）。</td></tr>
