@@ -127,7 +127,9 @@ line by line, and its handle syntax check matches <code>@atproto/syntax</code> (
     Adding an exact TXT record at <code>_atproto</code> wins over the wildcard. On a shared subdomain service, only the
     domain's owner can fix the wildcard.</li>
   <li><b>The check finds no record.</b> Usually the domain moved to a new DNS host or site builder and the
-    <code>_atproto</code> TXT record wasn't copied over. Add it again (the second box above gives you the exact value).</li>
+    <code>_atproto</code> TXT record wasn't copied over, or the website was rebuilt or moved and its
+    <code>/.well-known/atproto-did</code> file is gone. Put either one back (the second box above gives you the exact value);
+    you don't need a new handle.</li>
   <li><b>The handle uses only the .well-known file.</b> Then it depends on your website. If the site (or the hosting
     service it lives on) is down or slow when Bluesky re-checks, the handle goes invalid until the next check. A DNS TXT
     record avoids that.</li>

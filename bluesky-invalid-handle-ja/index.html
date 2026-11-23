@@ -66,7 +66,8 @@ Blueskyが確認できなかった」という意味だけです。多くの場�
   <li><b>ドメインの期限切れ</b>（または駐車ページ・売り出し中になった）。レジストラで更新し、<code>_atproto</code> のレコードが
     消えていたら作り直します。Blueskyのアプリで買ったドメインの場合は、<a href="../bluesky-domains-closed/ja/">こちらのページ</a>
     （Blueskyのドメイン販売終了について）も見てください。</li>
-  <li><b>DNSやサーバーの引っ越し</b>で、<code>_atproto</code> のTXTレコードが新しいDNSに移されていなかった。</li>
+  <li><b>DNSやサーバーの引っ越し</b>で、<code>_atproto</code> のTXTレコードが新しいDNSに移されていなかった。または、サイトの作り直しや移転で
+    <code>/.well-known/atproto-did</code> ファイルが消えた。どちらか一つを戻せば直ります（新しいハンドルは不要です）。</li>
   <li><b><code>did=</code> のレコードが2つある</b>（古いものと新しいものなど）。2つあるとBlueskyはどちらも受け付けません。
     自分のアカウントではない方を削除します。</li>
   <li><b>ワイルドカード（<code>*</code>）レコード</b>：レジストラが転送や駐車ページ用に作ったものが <code>_atproto</code> の代わりに

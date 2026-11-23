@@ -389,7 +389,13 @@
         if (m.d.cname) return false;
         return m.d.txt.some(function (t) { return /did[=:]/i.test(t); });
       }).map(function (m) { return { name: m.name, zone: m.zone, txt: m.d.txt.filter(function (t) { return /did[=:]/i.test(t); }) }; });
-      if (!rep.did || !isValidDid(rep.did)) return null;
+      if (!rep.did || !isValidDid(rep.did)) {
+        // Nothing resolves, but the user said which account it should be: does that account still list this handle?
+        var eu = rep.expected && rep.expected.did && isValidDid(rep.expected.did) ? didDocUrl(rep.expected.did) : null;
+        if (!eu) return null;
+        return getJson(fetchFn, eu).then(function (r) { rep.expectedAka = r.status === 200 ? akaHandles(r.json) : null; return null; },
+          function () { return null; });
+      }
       var url = didDocUrl(rep.did);
       return Promise.all([
         url ? getJson(fetchFn, url).then(function (r) { return r.status === 200 ? r.json : null; }, function () { return null; }) : null,
@@ -621,7 +627,17 @@
           'it may have been removed. Ask them, or pick another handle in the app (Settings, Account, Handle; for most people a free ' +
           '.bsky.social name, see the FAQ below); your posts and followers ' +
           'stay, they belong to your account (DID), not the name. You can usually still log in with your email (see the FAQ below).');
-        if (r.http.reached) steps.push('/.well-known/atproto-did: ' + r.http.note);
+        // Real case 2026-11-23: two news sites' handles broke after a move to a new IT provider; no TXT record and the
+        // .well-known file now 404s. With no TXT either, "the 404 is fine if you use TXT" would mislead.
+        if (r.http.reached) steps.push(!r.dns.txt.length && r.http.status === 404 && !r.http.did ?
+          'There is no file at https://' + r.handle + '/.well-known/atproto-did either (HTTP 404), so right now neither method ' +
+            'points to an account. You need only one: the TXT record above, or that file with your DID as its only content.' :
+          '/.well-known/atproto-did: ' + r.http.note);
+        if (!r.dns.txt.length && (r.expectedAka || []).indexOf(r.handle) >= 0) steps.push('Your account (' + r.expected.did +
+          ') still lists ' + r.handle + ' as its handle, so this worked before and then the domain stopped answering for it.');
+        if (!r.dns.txt.length) steps.push('If the handle worked before and then stopped: check what changed on the domain. ' +
+          'Moving the domain to a new DNS provider can drop the TXT record, and rebuilding the website or moving it to a new host ' +
+          'can delete the /.well-known/atproto-did file. Putting either one back fixes the handle; you do not need a new one.');
       }
       return { level: 'bad', title: 'Bluesky can not find an account for ' + r.handle, steps: steps };
     }

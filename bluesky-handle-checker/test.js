@@ -360,6 +360,22 @@ t("no record on a subdomain of a live domain: says the owner manages it", () => 
 t("no record on an apex domain: no 'not your own domain' step", () => run("example.com", {})
   .then((r) => { const s = r.verdict.steps.join(" ");
     assert.match(s, /No TXT record found/); assert.ok(!/not your own domain/.test(s)); }));
+// Real case 2026-11-23: digi.no / tu.no broke after a move to a new IT provider: no TXT, .well-known now 404s, DID doc still lists it.
+t("no TXT + file 404: 'neither method', 'worked before' hint, no 'fine if you use TXT'", () => run("example.com", { wk404: ["example.com"] })
+  .then((r) => { const s = r.verdict.steps.join(" ");
+    assert.match(s, /No TXT record found/); assert.match(s, /neither method points to an account/);
+    assert.match(s, /rebuilding the website or moving it to a new host/); assert.ok(!/fine if you use the TXT/.test(s));
+    assert.ok(!/still lists/.test(s)); }));
+t("no TXT + file 404 + DID given that still lists the handle: 'this worked before'", () => run("example.com",
+  { wk404: ["example.com"], docs: { [A]: ["example.com"] } }, A)
+  .then((r) => { assert.deepStrictEqual(r.expectedAka, ["example.com"]);
+    assert.match(r.verdict.steps.join(" "), new RegExp("\\(" + A + "\\) still lists example\\.com")); }));
+t("DID given that lists another handle: no 'still lists'", () => run("example.com", { docs: { [A]: ["me.bsky.social"] } }, A)
+  .then((r) => { assert.ok(!/still lists/.test(r.verdict.steps.join(" "))); }));
+t("TXT present but wrong: no 'neither method' / 'worked before' text", () => run("example.com",
+  { dns: { "_atproto.example.com": ['"v=spf1 -all"'] }, wk404: ["example.com"] })
+  .then((r) => { const s = r.verdict.steps.join(" ");
+    assert.match(s, /none starts with "did="/); assert.ok(!/neither method|worked before/.test(s)); }));
 // Real case 2026-11-21: armettebriard.neocities.org works through .well-known only; site hosts give no DNS access.
 t("siteHost: known website hosts only, not their own apex", () => {
   assert.deepStrictEqual(H.siteHost("me.github.io"), { zone: "github.io", name: "GitHub Pages" });

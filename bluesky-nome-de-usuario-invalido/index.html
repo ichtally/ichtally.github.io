@@ -62,7 +62,8 @@ no seu site). Por isso um nome que funcionou por meses pode quebrar de repente. 
 <ul>
   <li><b>O domínio expirou</b> (ou foi estacionado / posto à venda). Renove no seu registrador (para <code>.br</code>, normalmente o
     Registro.br) e, se o registro <code>_atproto</code> sumiu, crie de novo.</li>
-  <li><b>Você trocou de hospedagem ou de construtor de sites</b> e o registro TXT <code>_atproto</code> não foi copiado para o novo DNS.</li>
+  <li><b>Você trocou de hospedagem ou de construtor de sites</b> e o registro TXT <code>_atproto</code> não foi copiado para o novo DNS, ou o site foi refeito ou mudou de
+    hospedagem e o arquivo <code>/.well-known/atproto-did</code> sumiu. Basta recolocar um dos dois; não precisa de um nome novo.</li>
   <li><b>Dois registros <code>did=</code></b> no mesmo nome (por exemplo um antigo e um novo). Com dois, o Bluesky não aceita nenhum:
     apague o que não é da sua conta.</li>
   <li><b>Um registro curinga (<code>*</code>)</b> criado pelo registrador para redirecionamento ou estacionamento responde no lugar do
