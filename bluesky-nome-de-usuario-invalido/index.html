@@ -105,14 +105,22 @@ com ou sem tema Jekyll. Um site só em HTML pode usar, em vez disso, um arquivo 
 <p>Pode ser feito a qualquer momento, sem perder posts nem seguidores: <b>Configurações → Conta → Nome de usuário</b>. A primeira tela
 é a caixa "Novo nome de usuário", que já termina em <code>.bsky.social</code> (para a maioria das pessoas): digite um nome e toque em
 <b>Salvar</b>. Não toque em "Eu tenho meu próprio domínio", que é o caminho contrário. Regras: de 3 a 18 caracteres antes de
-<code>.bsky.social</code>, só letras, números e hífen (<b>sem sublinhado _</b>). Em um caso real em 21 de novembro de 2026, uma pessoa cujo
+<code>.bsky.social</code>, só letras, números e hífen (<b>sem sublinhado _</b>). Se você passou para o seu próprio domínio a partir de
+12 de dezembro de 2024, o nome <code>.bsky.social</code> que usava antes fica reservado para você, então basta digitá-lo de novo. Em um caso real em 21 de novembro de 2026, uma pessoa cujo
 nome no domínio de uma comunidade parou de funcionar fez exatamente isso e voltou a ter um nome válido, na mesma conta.</p>
 <p><b>Mas não troque de nome por causa de uma falha passageira.</b> Se o seu nome <code>.bsky.social</code> aparece como inválido, ou
 se muita gente vê isso ao mesmo tempo, normalmente é do lado do Bluesky e passa sozinho (passo 1). Salve o mesmo nome de novo primeiro.
-Ao trocar, o nome antigo fica livre na hora: no código do servidor (PDS) que o Bluesky publica, o nome é só um campo da conta que é
-sobrescrito, sem período de reserva, então qualquer pessoa pode registrá-lo em seguida. Links com o nome antigo
-(<code>bsky.app/profile/nome-antigo</code>, links de posts compartilhados) param de funcionar ou levam a quem pegou o nome.
-Posts, seguidores e menções já feitas continuam com você (apontam para o seu DID). Troque só quando o nome antigo não tem como voltar.</p>
+O que acontece com o nome antigo depende da troca. De um nome <code>.bsky.social</code> para outro: o antigo fica livre na hora e
+qualquer pessoa pode registrá-lo (no código do servidor (PDS) que o Bluesky publica, o nome é só um campo que o <code>updateHandle</code>
+sobrescreve; nas 2 trocas reais de 2025 e 2026 que verifiquei, os nomes antigos estavam livres para registro de novo). De um nome
+<code>.bsky.social</code> para o seu próprio domínio: o Bluesky mantém o nome antigo reservado para a sua conta, e você pode voltar a ele
+(o <a href="https://bsky.social/about/blog/4-28-2023-domain-handle-tutorial">guia de domínios do Bluesky</a> (em inglês) diz que
+isso vale para trocas desde 12 de dezembro de 2024, sem prazo de validade, e o app avisa na tela do domínio: "Seu nome de usuário atual …
+permanecerá automaticamente reservado para você"; no que verifiquei, 2 contas que trocaram depois dessa data ainda têm o nome reservado,
+2 que trocaram em abril de 2023 não). Nos dois casos, links com o nome antigo
+(<code>bsky.app/profile/nome-antigo</code>, links de posts compartilhados) param de funcionar, ou levam a quem pegar um nome que ficou livre.
+Posts, seguidores e menções já feitas continuam com você (apontam para o seu DID). Troque só quando o nome antigo não tem como voltar.
+<i>Corrigido em 23 de novembro de 2026: antes este trecho dizia que o nome antigo sempre fica livre.</i></p>
 
 <h2>6. É o perfil de outra pessoa que aparece como inválido</h2>
 <p>A conta continua a mesma, e você continua seguindo. Se quiser avisar a pessoa, <b>não use @menção</b>: o app só transforma

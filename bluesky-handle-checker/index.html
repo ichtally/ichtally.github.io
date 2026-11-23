@@ -171,8 +171,9 @@ Once you are in, fix the handle with the check above, or pick a new one in Setti
 <p>Yes, any time, and you keep your posts, followers and follows (they belong to your DID, which doesn't change). In the app:
 Settings → Account → Handle. The first screen is the "New handle" box, already ending in your hosting server's name
 (<code>.bsky.social</code> for most people): type a name and press Save. Don't press "I have my own domain"; that is the other way round.
-The usual name rules apply (3 to 18 characters, no underscores). If your old name has been taken since, the app says
-"Handle already taken", so pick another. If your account has a blue verified check, the app warns that changing the handle removes it.
+The usual name rules apply (3 to 18 characters, no underscores). If you went from a <code>.bsky.social</code> name to your own
+domain on or after 12 December 2024, Bluesky keeps that old name reserved for you, so you can type it again (see "Should I just pick a new handle?" below).
+If your old name has been taken since, the app says "Handle already taken", so pick another. If your account has a blue verified check, the app warns that changing the handle removes it.
 This is also the quick way out when the domain isn't yours to fix: in a real case on 21 November 2026, someone whose
 handle under a community's domain stopped working switched to a <code>.bsky.social</code> name, and the same account (same DID)
 was back to a working handle. You can switch to a domain again later.</p>
@@ -181,10 +182,17 @@ was back to a working handle. You can switch to a domain again later.</p>
 <p>Only when the old one can't come back: the domain lapsed or was resold, or it isn't yours to fix. If a <code>.bsky.social</code>
 name shows "Invalid Handle", or lots of people see it at the same time, it is usually on Bluesky's side and clears by itself
 (the handles I checked after the 20 November 2026 wave were all back the next day). Re-save the same name first
-(Settings → Account → Handle, type the same name, Save). A change frees your old name straight away: in the PDS server code Bluesky
-publishes, the handle is a field on your account that gets overwritten (<code>updateHandle</code>), with no hold period, so anyone
-can register it next. Links that contain the old name (<code>bsky.app/profile/old-name</code>, shared post links) then stop
-working or lead to whoever took it. Your posts, followers and existing mentions stay with you (they point to your DID).</p>
+(Settings → Account → Handle, type the same name, Save). What happens to the old name depends on the change.
+From one <code>.bsky.social</code> name to another: the old one is freed straight away and anyone can register it (in the PDS
+server code Bluesky publishes, the handle is a field that <code>updateHandle</code> overwrites; the old names from 2 real renames
+in 2025 and 2026 that I checked were both free to register again). From a <code>.bsky.social</code> name to your own domain:
+Bluesky keeps your most recent <code>.bsky.social</code> name reserved for your account, with no expiry, so you can switch back.
+Bluesky's <a href="https://bsky.social/about/blog/4-28-2023-domain-handle-tutorial">domain handle guide</a> says this applies to
+switches since 12 December 2024, and the app says it on the domain screen. It matches what I see: 2 accounts that switched after
+that date still hold their old name, 2 that switched in April 2023 don't. Either way,
+links that contain the old name (<code>bsky.app/profile/old-name</code>, shared post links) stop working, or lead to whoever
+takes a freed name. Your posts, followers and existing mentions stay with you (they point to your DID).
+<i>Corrected 23 November 2026: this answer used to say the old name is always freed.</i></p>
 
 <h3>I moved my account to another server (Blacksky, Eurosky…) and now it says "Invalid Handle"</h3>
 <p>Usually that just needs a little time. I looked at real moves to Blacksky and myatproto.social (October 2025 to November 2026). People posted "Invalid Handle"
